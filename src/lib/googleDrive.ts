@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { Readable } from 'stream';
+import { getGoogleAuth } from './googleAuth';
 
 export interface DriveUploadResult {
   fileId: string;
@@ -11,23 +12,15 @@ export async function uploadToGoogleDrive(
   customName: string,
   folderId?: string
 ): Promise<DriveUploadResult> {
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  let privateKey = process.env.GOOGLE_PRIVATE_KEY;
   const defaultFolderId = folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
+  const auth = getGoogleAuth([
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/drive.file'
+  ]);
 
-  if (!clientEmail || !privateKey || !defaultFolderId) {
+  if (!auth || !defaultFolderId) {
     throw new Error('Google Drive configuration missing (Email, Private Key, or Folder ID)');
   }
-
-  if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-    privateKey = privateKey.slice(1, -1);
-  }
-
-  const auth = new google.auth.JWT({
-    email: clientEmail,
-    key: privateKey.replace(/\\n/g, '\n'),
-    scopes: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.file'],
-  });
 
   const drive = google.drive({ version: 'v3', auth });
 

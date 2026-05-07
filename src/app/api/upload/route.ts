@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { uploadToGoogleDrive } from '@/lib/googleDrive';
-import { Readable } from 'stream';
+import { getGoogleAuth } from '@/lib/googleAuth';
 
 export async function POST(req: Request) {
   try {
@@ -14,13 +14,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'File and name are required' }, { status: 400 });
     }
 
-    // Google Drive & Sheets Credentials
-    const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY;
-    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    const auth = getGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
-    if (!clientEmail || !privateKey || !folderId || !spreadsheetId) {
+    if (!auth || !spreadsheetId) {
       console.warn('Google Credentials missing. Running in mock mode.');
       return NextResponse.json({ 
         success: true, 
@@ -29,14 +26,9 @@ export async function POST(req: Request) {
       });
     }
 
-    // Initialise Google Drive & Sheets
-    const { fileId, driveLink } = await uploadToGoogleDrive(file, name, folderId);
+    // Initialize Google Drive & Sheets
+    const { fileId, driveLink } = await uploadToGoogleDrive(file, name);
 
-    const auth = new google.auth.JWT({
-      email: clientEmail,
-      key: privateKey.replace(/\\n/g, '\n'),
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
     const sheets = google.sheets({ version: 'v4', auth });
 
     // Log metadata to "Customizations" sheet
