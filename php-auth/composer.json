@@ -1,0 +1,7 @@
+{
+  "name": "rigo/php-auth-mongodb",
+  "description": "PHP login and registration using MongoDB",
+  "require": {
+    "mongodb/mongodb": "^1.20"
+  }
+}

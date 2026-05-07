@@ -1,0 +1,104 @@
+[
+  {
+    "id": "h1",
+    "name": "Landscape Embroidery Hoodie",
+    "category": "hoodies",
+    "price": 0.99,
+    "description": "A heavyweight, premium hoodie featuring an intricate 50,000-stitch landscape embroidery on the back. Made from 450gsm organic cotton.",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "details": [
+      "100% Organic Cotton",
+      "450gsm Heavyweight",
+      "Relaxed Fit",
+      "Intricate Embroidery"
+    ],
+    "image": "/hoodie.png",
+    "soldOutSizes": []
+  },
+  {
+    "id": "h2",
+    "name": "Essential Oversized Hoodie",
+    "category": "hoodies",
+    "price": 95,
+    "image": "/hoodie.png",
+    "description": "The backbone of your wardrobe. Minimal branding with maximum comfort. Tonal embroidery on the chest.",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "details": [
+      "80/20 Cotton-Poly Blend",
+      "380gsm",
+      "Oversized Fit",
+      "Tonal Embroidery"
+    ],
+    "soldOut": false
+  },
+  {
+    "id": "t1",
+    "name": "Vintage Arch Tee",
+    "category": "tees",
+    "price": 55,
+    "image": "/tee.png",
+    "description": "Our signature arch logo in high-density embroidery. Vintage washed for a lived-in feel and boxy silhouette.",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "details": [
+      "100% Cotton",
+      "240gsm Single Jersey",
+      "Boxy Fit",
+      "High-Density Arch Embroidery"
+    ],
+    "soldOut": false,
+    "soldOutSizes": []
+  },
+  {
+    "id": "t2",
+    "name": "Minimalist Script Tee",
+    "category": "tees",
+    "price": 45,
+    "image": "/tee.png",
+    "description": "Fine script embroidery on the collar. A subtle statement of luxury and craftsmanship.",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "details": [
+      "100% Supima Cotton",
+      "180gsm",
+      "Regular Fit",
+      "Script Embroidery"
+    ],
+    "soldOut": false
+  },
+  {
+    "id": "a1",
+    "name": "Embroidered Logo Cap",
+    "category": "sweatshirt",
+    "price": 35,
+    "description": "Structured 6-panel cap with our iconic logo in raised embroidery. Adjustable strap for a perfect fit.",
+    "sizes": [
+      ""
+    ],
+    "details": [
+      "100% Cotton Twill",
+      "6-Panel Structure",
+      "Raised Embroidery",
+      "Adjustable Strap"
+    ],
+    "image": "/hero.png"
+  }
+]
