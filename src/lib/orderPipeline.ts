@@ -18,7 +18,14 @@ const HEADER_ROW = [
   'total',
   'paymentMethod',
   'transactionId',
+  'customizationLink',
+  'customizationInstructions',
 ];
+
+interface SyncResult {
+  syncedToSheets: boolean;
+  reason: string;
+}
 
 export interface OrderItemInput {
   id?: string;
@@ -48,6 +55,8 @@ export interface OrderInput {
   stripePaymentIntentId?: string | null;
   status?: string;
   source?: string;
+  customizationLink?: string;
+  customizationInstructions?: string;
 }
 
 function getGoogleAuth() {
@@ -124,6 +133,8 @@ function formatOrderRow(order: OrderInput) {
     order.total,
     order.paymentMethod,
     order.transactionId,
+    order.customizationLink,
+    order.customizationInstructions,
   ];
 }
 
@@ -153,6 +164,8 @@ function normalizeOrder(order: Partial<OrderInput>): OrderInput {
     stripePaymentIntentId: order.stripePaymentIntentId ?? null,
     status: order.status || 'paid',
     source: order.source || 'web',
+    customizationLink: order.customizationLink || '',
+    customizationInstructions: order.customizationInstructions || '',
   };
 }
 
@@ -194,7 +207,7 @@ async function saveOrderToDatabase(order: OrderInput) {
   };
 }
 
-async function appendOrderToGoogleSheets(order: OrderInput) {
+async function appendOrderToGoogleSheets(order: OrderInput): Promise<SyncResult> {
   const auth = getGoogleAuth();
   if (!auth) {
     return { syncedToSheets: false, reason: 'Google Sheets not configured' };
@@ -209,7 +222,7 @@ async function appendOrderToGoogleSheets(order: OrderInput) {
     requestBody: { values: [formatOrderRow(order)] },
   });
 
-  return { syncedToSheets: true };
+  return { syncedToSheets: true, reason: 'Success' };
 }
 
 export async function persistAndSyncOrder(payload: Partial<OrderInput>) {
@@ -217,9 +230,9 @@ export async function persistAndSyncOrder(payload: Partial<OrderInput>) {
   const dbResult = await saveOrderToDatabase(order);
   
   // Only sync to sheets if it's a new order (not a duplicate)
-  let sheetResult = { syncedToSheets: false, reason: 'Duplicate order' };
+  let sheetResult: SyncResult = { syncedToSheets: false, reason: 'Duplicate order' };
   if (!dbResult.duplicate) {
-    sheetResult = await appendOrderToGoogleSheets(order);
+    sheetResult = (await appendOrderToGoogleSheets(order)) as SyncResult;
   }
   
   return { order, dbResult, sheetResult };

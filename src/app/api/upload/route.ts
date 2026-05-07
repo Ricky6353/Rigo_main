@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { uploadToGoogleDrive } from '@/lib/googleDrive';
 import { Readable } from 'stream';
 
 export async function POST(req: Request) {
@@ -28,53 +29,15 @@ export async function POST(req: Request) {
       });
     }
 
-    // Initialise Google Drive API
+    // Initialise Google Drive & Sheets
+    const { fileId, driveLink } = await uploadToGoogleDrive(file, name, folderId);
+
     const auth = new google.auth.JWT({
       email: clientEmail,
       key: privateKey.replace(/\\n/g, '\n'),
-      scopes: [
-        'https://www.googleapis.com/auth/drive',
-        'https://www.googleapis.com/auth/drive.file',
-        'https://www.googleapis.com/auth/spreadsheets'
-      ],
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
-
-    const drive = google.drive({ version: 'v3', auth });
     const sheets = google.sheets({ version: 'v4', auth });
-
-    // Rename file uniquely: timestamp_username_filename
-    const timestamp = new Date().getTime();
-    const safeName = name.replace(/\s+/g, '_').toLowerCase();
-    const newFileName = `${timestamp}_${safeName}_${file.name}`;
-
-    // Convert file to buffer then to stream
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const stream = Readable.from(buffer);
-
-    // Upload to Drive
-    const driveResponse = await drive.files.create({
-      requestBody: {
-        name: newFileName,
-        parents: [folderId],
-      },
-      media: {
-        mimeType: file.type,
-        body: stream,
-      },
-      fields: 'id, webViewLink',
-    });
-
-    const fileId = driveResponse.data.id;
-    const driveLink = driveResponse.data.webViewLink;
-
-    // Set file to "view" for anyone with link (optional, depends on folder settings)
-    await drive.permissions.create({
-      fileId: fileId!,
-      requestBody: {
-        role: 'reader',
-        type: 'anyone',
-      },
-    });
 
     // Log metadata to "Customizations" sheet
     await sheets.spreadsheets.values.append({
