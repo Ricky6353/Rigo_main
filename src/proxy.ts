@@ -2,7 +2,7 @@ import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 
 export default withAuth(
-  function middleware(request) {
+  function proxy(request) {
     const { pathname } = request.nextUrl;
     
     // Define categories to redirect
@@ -35,7 +35,7 @@ export default withAuth(
   },
   {
     callbacks: {
-      // Allow the middleware function to run and handle the authorization logic
+      // Allow the proxy function to run and handle the authorization logic
       authorized: () => true,
     },
   }

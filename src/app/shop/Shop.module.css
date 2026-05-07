@@ -23,6 +23,14 @@
 .filters {
   display: flex;
   gap: 2rem;
+  overflow-x: auto;
+  padding-bottom: 5px;
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.filters::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }
 
 .filterBtn {

@@ -17,7 +17,7 @@ export default function CheckoutPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    spetStatus('processing');
+    setStatus('processing');
     
     // Mock Payment Processing
     setTimeout(() => {
