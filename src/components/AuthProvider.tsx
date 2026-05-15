@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 
-const ADMIN_EMAIL = 'jayembroyit@gmail.com';
+const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
 
 type User = {
   id: string;
@@ -15,7 +15,7 @@ type User = {
 
 type AuthContextType = {
   user: User | null;
-  recalledAccounts: { email: string; name: string }[];
+  recalledAccounts: [];
   login: (email: string, name: string) => void;
   logout: () => void;
   addToWishlist: (productId: string) => void;
@@ -28,17 +28,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [recalledAccounts, setRecalledAccounts] = useState<{ email: string; name: string }[]>([]);
+  const [recalledAccounts, setRecalledAccounts] = useState([]);
 
   const { data: session } = useSession();
 
   // Load user and recall history from local storage on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('embroyit_user');
-    const storedHistory = localStorage.getItem('embroyit_login_history');
-    
     if (storedUser) setUser(JSON.parse(storedUser));
-    if (storedHistory) setRecalledAccounts(JSON.parse(storedHistory));
+    localStorage.removeItem('embroyit_login_history'); // Clean up any existing history
   }, []);
 
   // Sync social session with state
@@ -54,7 +52,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setUser(socialUser);
 
       // Handle admin portal access via social login
-      if (session.user.email === ADMIN_EMAIL) {
+      if (session.user.email && ADMIN_EMAILS.includes(session.user.email)) {
         sessionStorage.setItem('adminAuth', 'true');
       }
     }
@@ -64,14 +62,6 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (user) {
       localStorage.setItem('embroyit_user', JSON.stringify(user));
-      
-      // Update recall history automatically
-      setRecalledAccounts(prev => {
-        const filtered = prev.filter(a => a.email !== user.email);
-        const newHistory = [{ email: user.email, name: user.name }, ...filtered].slice(0, 5);
-        localStorage.setItem('embroyit_login_history', JSON.stringify(newHistory));
-        return newHistory;
-      });
     } else {
       localStorage.removeItem('embroyit_user');
     }

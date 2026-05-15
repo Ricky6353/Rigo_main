@@ -78,12 +78,27 @@ export default function ShopClient({
                     >
                       <Link href={`/shop/${product.id}`}>
                         <div className={styles.imageWrapper}>
-                          <Image
-                            src={product.image}
-                            alt={product.name}
-                            fill
-                            className={styles.image}
-                          />
+                          {product.image.toLowerCase().match(/\.(mp4|webm|mov|quicktime)$/) ? (
+                            <video 
+                              src={product.image} 
+                              className={styles.image} 
+                              muted 
+                              loop 
+                              autoPlay 
+                              playsInline 
+                              disablePictureInPicture
+                              disableRemotePlayback
+                              onContextMenu={(e) => e.preventDefault()}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <Image
+                              src={product.image}
+                              alt={product.name}
+                              fill
+                              className={styles.image}
+                            />
+                          )}
                           <div className={styles.overlay}>
                             <span>{isSoldOut ? 'Sold Out' : 'Quick View'}</span>
                           </div>

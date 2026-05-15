@@ -1,5 +1,6 @@
 import { google, sheets_v4 } from 'googleapis';
 import { getMongoClient } from '@/lib/mongodb';
+import { getGoogleAuth } from './googleAuth';
 
 const ORDERS_SHEET_NAME = 'DailyOrders';
 const HEADER_ROW = [
@@ -59,29 +60,13 @@ export interface OrderInput {
   customizationInstructions?: string;
 }
 
-function getGoogleAuth() {
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  let privateKey = process.env.GOOGLE_PRIVATE_KEY;
+function getSheetsClient() {
   const spreadsheetId = process.env.GOOGLE_ORDERS_SPREADSHEET_ID || process.env.GOOGLE_SPREADSHEET_ID;
+  const auth = getGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
-  if (!clientEmail || !privateKey || !spreadsheetId) {
+  if (!auth || !spreadsheetId) {
     return null;
   }
-
-  if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-    privateKey = privateKey.slice(1, -1);
-  }
-
-  const formattedKey = privateKey.replace(/\\n/g, '\n');
-  if (formattedKey.includes('Your\nVery\nLong')) {
-    return null;
-  }
-
-  const auth = new google.auth.JWT({
-    email: clientEmail,
-    key: formattedKey,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
 
   const sheets = google.sheets({ version: 'v4', auth });
   return { sheets, spreadsheetId };
@@ -102,13 +87,13 @@ async function ensureSheetAndHeader(sheets: sheets_v4.Sheets, spreadsheetId: str
 
   const headerResponse = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${ORDERS_SHEET_NAME}!A1:O1`,
+    range: `${ORDERS_SHEET_NAME}!A1:Q1`,
   });
   const currentHeader = headerResponse.data.values?.[0] || [];
   if (!currentHeader.length || currentHeader.length < HEADER_ROW.length) {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${ORDERS_SHEET_NAME}!A1:O1`,
+      range: `${ORDERS_SHEET_NAME}!A1:Q1`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [HEADER_ROW] },
     });
@@ -122,7 +107,7 @@ function formatOrderRow(order: OrderInput) {
     order.orderDate,
     order.customerName,
     order.contact,
-    order.phoneNumber,
+    `'${order.phoneNumber}`,
     order.email,
     order.emailId,
     order.address,
@@ -208,31 +193,54 @@ async function saveOrderToDatabase(order: OrderInput) {
 }
 
 async function appendOrderToGoogleSheets(order: OrderInput): Promise<SyncResult> {
-  const auth = getGoogleAuth();
+  const auth = getSheetsClient();
   if (!auth) {
     return { syncedToSheets: false, reason: 'Google Sheets not configured' };
   }
 
   const { sheets, spreadsheetId } = auth;
   await ensureSheetAndHeader(sheets, spreadsheetId);
-  await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range: `${ORDERS_SHEET_NAME}!A:O`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: { values: [formatOrderRow(order)] },
-  });
-
-  return { syncedToSheets: true, reason: 'Success' };
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${ORDERS_SHEET_NAME}!A:Q`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [formatOrderRow(order)] },
+    });
+    console.log(`Successfully synced order ${order.orderId} to Google Sheets.`);
+    return { syncedToSheets: true, reason: 'Success' };
+  } catch (err: any) {
+    console.error(`Failed to sync order ${order.orderId} to Google Sheets:`, err.message);
+    return { syncedToSheets: false, reason: err.message };
+  }
 }
 
 export async function persistAndSyncOrder(payload: Partial<OrderInput>) {
   const order = normalizeOrder(payload);
-  const dbResult = await saveOrderToDatabase(order);
+  console.log(`Processing order ${order.orderId} from ${order.source}...`);
+
+  // Try DB first
+  let dbResult: any = { persistedToDb: false, reason: 'Pending' };
+  try {
+    dbResult = await saveOrderToDatabase(order);
+    console.log(`DB persistence for ${order.orderId}: ${dbResult.persistedToDb ? 'SUCCESS' : 'FAILED'} (${dbResult.reason || 'No reason'})`);
+  } catch (dbErr: any) {
+    console.error(`Critical DB Error for ${order.orderId}:`, dbErr.message);
+    dbResult = { persistedToDb: false, reason: dbErr.message };
+  }
   
-  // Only sync to sheets if it's a new order (not a duplicate)
-  let sheetResult: SyncResult = { syncedToSheets: false, reason: 'Duplicate order' };
+  // Try Sheets regardless of DB failure (unless it's a known duplicate)
+  let sheetResult: SyncResult = { syncedToSheets: false, reason: 'Pending' };
   if (!dbResult.duplicate) {
-    sheetResult = (await appendOrderToGoogleSheets(order)) as SyncResult;
+    try {
+      sheetResult = (await appendOrderToGoogleSheets(order)) as SyncResult;
+      console.log(`Sheet sync for ${order.orderId}: ${sheetResult.syncedToSheets ? 'SUCCESS' : 'FAILED'}`);
+    } catch (sheetErr: any) {
+      console.error(`Critical Sheet Error for ${order.orderId}:`, sheetErr.message);
+      sheetResult = { syncedToSheets: false, reason: sheetErr.message };
+    }
+  } else {
+    console.log(`Skipping Sheet sync for ${order.orderId} (Duplicate detected)`);
   }
   
   return { order, dbResult, sheetResult };

@@ -8,9 +8,11 @@ import styles from './Customization.module.css';
 export default function CustomizationPage() {
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [countryCode, setCountryCode] = useState('+44');
+  const [phone, setPhone] = useState('');
   const [instructions, setInstructions] = useState('');
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-  const [driveLink, setDriveLink] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
@@ -41,12 +43,17 @@ export default function CustomizationPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !name) return;
+    if (!file || !name || !email || !phone) {
+      setErrorMsg('Please fill in all required fields and select a file.');
+      return;
+    }
 
     setStatus('uploading');
     const formData = new FormData();
     formData.append('file', file);
     formData.append('name', name);
+    formData.append('email', email);
+    formData.append('phone', `${countryCode} ${phone}`);
     formData.append('instructions', instructions);
 
     try {
@@ -59,9 +66,10 @@ export default function CustomizationPage() {
 
       if (res.ok) {
         setStatus('success');
-        setDriveLink(data.driveLink);
         setFile(null);
         setName('');
+        setEmail('');
+        setPhone('');
         setInstructions('');
       } else {
         setStatus('error');
@@ -95,15 +103,7 @@ export default function CustomizationPage() {
               >
                 <CheckCircle size={64} className={styles.successIcon} />
                 <h2>Upload Successful!</h2>
-                <p>Your customization request has been received.</p>
-                {driveLink && (
-                  <div className={styles.linkContainer}>
-                    <span>View your file:</span>
-                    <a href={driveLink} target="_blank" rel="noopener noreferrer" className={styles.driveLink}>
-                      Google Drive Link
-                    </a>
-                  </div>
-                )}
+                <p>Our team will get back to you in the next 24 hours.</p>
                 <button 
                   onClick={() => setStatus('idle')} 
                   className={styles.resetBtn}
@@ -119,11 +119,54 @@ export default function CustomizationPage() {
                     type="text" 
                     id="name"
                     required
-                    placeholder="Your Name"
+                    placeholder="Your Full Name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     disabled={status === 'uploading'}
                   />
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className={styles.inputGroup}>
+                    <label htmlFor="email">Email Address</label>
+                    <input 
+                      type="email" 
+                      id="email"
+                      required
+                      placeholder="email@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={status === 'uploading'}
+                    />
+                  </div>
+                  <div className={styles.inputGroup}>
+                    <label htmlFor="phone">Contact Number</label>
+                    <div className={styles.phoneInputWrapper}>
+                      <select 
+                        className={styles.countrySelect}
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        disabled={status === 'uploading'}
+                      >
+                        <option value="+44">UK (+44)</option>
+                        <option value="+1">USA (+1)</option>
+                        <option value="+91">IND (+91)</option>
+                        <option value="+971">UAE (+971)</option>
+                        <option value="+61">AUS (+61)</option>
+                        <option value="+33">FRA (+33)</option>
+                        <option value="+49">GER (+49)</option>
+                      </select>
+                      <input 
+                        type="tel" 
+                        id="phone"
+                        required
+                        placeholder="7400 123456"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        disabled={status === 'uploading'}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className={styles.inputGroup}>

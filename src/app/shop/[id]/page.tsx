@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { ShoppingBag, ChevronLeft, Check, Info } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, Check, Info, Play, Pause } from 'lucide-react';
 import { products as initialProducts, Product } from '@/data/products';
 import { useCart } from '@/components/CartProvider';
 import styles from './ProductDetail.module.css';
@@ -26,6 +26,19 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | undefined>(() => initialProducts.find((p) => p.id === params.id));
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
 
   useEffect(() => {
     fetch('/api/products')
@@ -86,14 +99,58 @@ export default function ProductDetailPage() {
             className={styles.imageSection}
           >
             <div className={styles.mainImageWrapper}>
-              <Image
-                src={product.image}
-                alt={product.name}
-                fill
-                priority
-                className={styles.mainImage}
-              />
+              {product.image.toLowerCase().match(/\.(mp4|webm|mov|quicktime)$/) ? (
+                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                  <video
+                    ref={videoRef}
+                    src={product.image}
+                    className={styles.mainImage}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    disablePictureInPicture
+                    disableRemotePlayback
+                    controlsList="nodownload noplaybackrate nopictureinpicture"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onClick={togglePlay}
+                    onContextMenu={(e) => e.preventDefault()}
+                  />
+                  <button 
+                    onClick={togglePlay}
+                    className={styles.playPauseBtn}
+                  >
+                    {isPlaying ? <Pause size={24} /> : <Play size={24} fill="currentColor" />}
+                  </button>
+                </div>
+              ) : (
+                <Image
+                  src={product.image}
+                  alt={product.name}
+                  fill
+                  priority
+                  className={styles.mainImage}
+                />
+              )}
             </div>
+            
+            {product.images && product.images.length > 0 && (
+              <div className={styles.thumbnailGrid}>
+                {product.images.map((img, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`${styles.thumbnail} ${product.image === img ? styles.activeThumb : ''}`}
+                    onClick={() => setProduct({ ...product, image: img })}
+                  >
+                    {img.toLowerCase().match(/\.(mp4|webm|mov|quicktime)$/) ? (
+                      <video src={img} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <Image src={img} alt={`${product.name} ${idx}`} fill style={{ objectFit: 'cover' }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
 
           {/* Product Info */}

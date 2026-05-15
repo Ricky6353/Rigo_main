@@ -7,6 +7,9 @@ import Link from 'next/link';
 import { LogOut, ShoppingBag, ArrowRight, Mail, User, Package } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import styles from './Profile.module.css';
+import { Settings } from 'lucide-react';
+
+const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
 
 interface Order {
   orderId: string;
@@ -186,6 +189,32 @@ export default function ProfilePage() {
             </div>
           </div>
         </motion.section>
+
+        {ADMIN_EMAILS.includes(user.email.toLowerCase()) && (
+          <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className={styles.section}
+          >
+            <h2 className={styles.sectionTitle}>
+              <Settings size={20} />
+              Admin Access
+            </h2>
+            <div className={styles.settingsBox}>
+              <div className={styles.setting}>
+                <span className={styles.settingLabel}>Portal Status</span>
+                <span className={styles.settingValue}>Authorized</span>
+              </div>
+              <div className={styles.setting}>
+                <span className={styles.settingLabel}>Management</span>
+                <Link href="/admin" className={styles.settingValue} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-fg)' }}>
+                  Command Center <ArrowRight size={14} />
+                </Link>
+              </div>
+            </div>
+          </motion.section>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}

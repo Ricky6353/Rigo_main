@@ -5,7 +5,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { getMongoClient } from "@/lib/mongodb";
 import { verifyPassword } from "@/lib/auth";
 
-const ADMIN_EMAIL = 'jayembroyit@gmail.com';
+const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -46,7 +46,7 @@ export const authOptions: NextAuthOptions = {
             id: user._id.toString(),
             name: user.name,
             email: user.email,
-            role: user.email === ADMIN_EMAIL ? 'admin' : 'user',
+            role: ADMIN_EMAILS.includes(user.email) ? 'admin' : 'user',
           };
         } catch (error) {
           console.error("Credentials Auth Error:", error);
@@ -74,7 +74,7 @@ export const authOptions: NextAuthOptions = {
           await users.insertOne({
             name: user.name || email.split('@')[0],
             email: email,
-            role: email === ADMIN_EMAIL ? 'admin' : 'user',
+            role: ADMIN_EMAILS.includes(email) ? 'admin' : 'user',
             image: user.image,
             authType: account?.provider,
             createdAt: new Date(),
@@ -90,7 +90,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session }) {
       if (session.user) {
         // @ts-ignore
-        session.user.role = session.user.email === ADMIN_EMAIL ? 'admin' : 'user';
+        session.user.role = session.user.email && ADMIN_EMAILS.includes(session.user.email) ? 'admin' : 'user';
       }
       return session;
     },

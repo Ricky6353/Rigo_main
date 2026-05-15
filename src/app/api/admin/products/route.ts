@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const formData = await req.formData();
     
     const id = formData.get('id') as string || `p_${Date.now()}`;
@@ -29,9 +38,10 @@ export async function POST(req: Request) {
         const file = formData.get(`file_${i}`) as File | null;
         
         if (file && file.size > 0) {
-          // Validate image type
-          if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
-            return NextResponse.json({ error: 'Only JPEG and PNG formats are allowed' }, { status: 400 });
+          // Validate image/video type
+          const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'video/mp4', 'video/webm', 'video/quicktime'];
+          if (!allowedTypes.includes(file.type)) {
+            return NextResponse.json({ error: 'Only JPEG, PNG and common video formats (MP4, WebM) are allowed' }, { status: 400 });
           }
 
           const buffer = Buffer.from(await file.arrayBuffer());

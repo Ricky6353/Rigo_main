@@ -6,7 +6,7 @@ type LoginBody = {
   email?: string;
   password?: string;
 };
-const ADMIN_EMAIL = 'jayembroyit@gmail.com';
+const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
 
 export async function POST(request: Request) {
   try {
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
         id: user._id.toString(),
         name: user.name,
         email: user.email,
-        role: user.email === ADMIN_EMAIL ? 'admin' : 'user',
+        role: ADMIN_EMAILS.includes(user.email) ? 'admin' : 'user',
       },
     });
   } catch (error: unknown) {

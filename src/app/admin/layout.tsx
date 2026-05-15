@@ -9,7 +9,9 @@ export default async function AdminLayout({
 }) {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user?.email || session.user.email !== "jayembroyit@gmail.com") {
+  const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+
+  if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
     notFound();
   }
 

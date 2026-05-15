@@ -22,27 +22,33 @@ async function main() {
     const db = client.db(process.env.MONGODB_DB);
     const users = db.collection('users');
     
-    const email = 'jayembroyit@gmail.com';
-    const existing = await users.findOne({ email });
+    const adminAccounts = [
+      { email: 'embroyitltdjay@gmail.com', name: 'Jay Embroyit Admin' },
+      { email: 'embroyitricky@gmail.com', name: 'Ricky Admin' }
+    ];
     
-    if (existing) {
-      if (!existing.password) {
-         await users.updateOne({ email }, { $set: { password: hashPassword('admin123') } });
-         console.log('User existed without password. Added password "admin123".');
+    const password = 'admin@123';
+    
+    for (const account of adminAccounts) {
+      const existing = await users.findOne({ email: account.email });
+      
+      if (existing) {
+        await users.updateOne(
+          { email: account.email }, 
+          { $set: { password: hashPassword(password), role: 'admin' } }
+        );
+        console.log(`Updated admin user ${account.email} with new password.`);
       } else {
-         await users.updateOne({ email }, { $set: { password: hashPassword('admin123') } });
-         console.log('User already existed. Reset password to "admin123".');
+        await users.insertOne({
+          name: account.name,
+          email: account.email,
+          password: hashPassword(password),
+          role: 'admin',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        console.log(`Created admin user ${account.email} with password "${password}".`);
       }
-    } else {
-      await users.insertOne({
-        name: 'Jay Embroyit Admin',
-        email,
-        password: hashPassword('admin123'),
-        role: 'admin',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      console.log('Created admin user jayembroyit@gmail.com with password "admin123".');
     }
   } catch(e) {
     console.error(e);

@@ -127,11 +127,47 @@
   margin: 0 auto;
 }
 
-.paypalLogo {
-  height: 60px;
+.stripeInfoBox {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 28px;
+  border-radius: 16px;
+  margin-top: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.stripeHeader {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--color-fg);
+}
+
+.stripeNotice {
+  font-size: 0.95rem;
+  color: var(--color-fg-muted);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.trustBadges {
+  display: flex;
+  gap: 25px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 20px;
+}
+
+.badgeItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #81b29a; /* Softer, professional sage green */
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .paymentHeader {

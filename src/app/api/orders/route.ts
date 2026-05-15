@@ -19,6 +19,8 @@ const HEADER_ROW = [
   'total',
   'paymentMethod',
   'transactionId',
+  'customizationLink',
+  'customizationInstructions',
 ];
 
 function getGoogleAuth() {
@@ -126,6 +128,8 @@ function parseSheetRows(rows: any[][]) {
         total: Number(row[12] ?? 0),
         paymentMethod: row[13] ?? '',
         transactionId: row[14] ?? '',
+        customizationLink: row[15] ?? '',
+        customizationInstructions: row[16] ?? '',
       };
     } else {
       // Old format (12 columns)

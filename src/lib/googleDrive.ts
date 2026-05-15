@@ -41,6 +41,7 @@ export async function uploadToGoogleDrive(
       body: stream,
     },
     fields: 'id, webViewLink',
+    supportsAllDrives: true, // Required for Shared Drives
   });
 
   const fileId = response.data.id;
@@ -57,6 +58,7 @@ export async function uploadToGoogleDrive(
       role: 'reader',
       type: 'anyone',
     },
+    supportsAllDrives: true, // Required for Shared Drives
   });
 
   return { fileId, driveLink };

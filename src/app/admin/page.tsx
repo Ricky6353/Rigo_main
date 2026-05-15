@@ -7,7 +7,8 @@ import { products as initialProducts, Product } from '@/data/products';
 import styles from './Admin.module.css';
 import { X, Download, BarChart3, Trash2 } from 'lucide-react';
 
-const ADMIN_EMAIL = 'jayembroyit@gmail.com';
+const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
 
 export default function AdminPortal() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -48,7 +49,7 @@ export default function AdminPortal() {
   useEffect(() => {
     const storedUser = localStorage.getItem('embroyit_user');
     const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-    const isAdminUser = parsedUser?.email === ADMIN_EMAIL;
+    const isAdminUser = parsedUser?.email && ADMIN_EMAILS.includes(parsedUser.email);
     
     if (isAdminUser) {
       setIsAuthenticated(true);
@@ -211,12 +212,20 @@ export default function AdminPortal() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     const maxFiles = 6;
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'video/mp4', 'video/webm', 'video/quicktime'];
     
     // Check for invalid file types
     const invalidFiles = selectedFiles.filter(file => !allowedTypes.includes(file.type));
     if (invalidFiles.length > 0) {
-      alert('Only JPEG and PNG formats are allowed.');
+      alert('Only JPEG, PNG and common video formats (MP4, WebM) are allowed.');
+      e.target.value = ''; // Reset input
+      return;
+    }
+
+    // Check for file size
+    const oversizedFiles = selectedFiles.filter(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      alert(`Some files are too large. Maximum allowed size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
       e.target.value = ''; // Reset input
       return;
     }
@@ -237,11 +246,19 @@ export default function AdminPortal() {
   const handleGalleryFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     const maxFiles = 6;
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'video/mp4', 'video/webm', 'video/quicktime'];
 
     const invalidFiles = selectedFiles.filter(file => !allowedTypes.includes(file.type));
     if (invalidFiles.length > 0) {
-      alert('Only JPEG and PNG formats are allowed in the gallery.');
+      alert('Only JPEG, PNG and common video formats (MP4, WebM) are allowed.');
+      e.target.value = ''; // Reset input
+      return;
+    }
+
+    // Check for file size
+    const oversizedFiles = selectedFiles.filter(file => file.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      alert(`Some files are too large. Maximum allowed size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
       e.target.value = ''; // Reset input
       return;
     }
@@ -499,8 +516,8 @@ export default function AdminPortal() {
               </select>
             </label>
             <label className={styles.label}>
-              Product Images ({files.length}/6)
-              <input type="file" multiple accept=".jpeg,.jpg,.png" className={styles.fileInput} onChange={handleFileSelect} />
+              Product Media (Images/Videos) ({files.length}/6)
+              <input type="file" multiple accept="image/*,video/*" className={styles.fileInput} onChange={handleFileSelect} />
             </label>
 
             {/* Image Previews */}
@@ -508,32 +525,39 @@ export default function AdminPortal() {
               <div className={`${styles.label} ${styles.fullWidth}`}>
                 <p>Selected Images:</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '10px', marginTop: '10px' }}>
-                  {filePreviews.map((preview, index) => (
-                    <div key={index} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-                      <img src={preview} alt={`Preview ${index}`} style={{ width: '100%', height: '100px', objectFit: 'cover' }} />
-                      <button
-                        type="button"
-                        onClick={() => removeFile(index)}
-                        style={{
-                          position: 'absolute',
-                          top: '5px',
-                          right: '5px',
-                          background: 'rgba(0,0,0,0.7)',
-                          border: 'none',
-                          color: 'white',
-                          borderRadius: '50%',
-                          width: '24px',
-                          height: '24px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
+                  {filePreviews.map((preview, index) => {
+                    const isVideo = files[index]?.type.startsWith('video/');
+                    return (
+                      <div key={index} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                        {isVideo ? (
+                          <video src={preview} style={{ width: '100%', height: '100px', objectFit: 'cover' }} muted />
+                        ) : (
+                          <img src={preview} alt={`Preview ${index}`} style={{ width: '100%', height: '100px', objectFit: 'cover' }} />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeFile(index)}
+                          style={{
+                            position: 'absolute',
+                            top: '5px',
+                            right: '5px',
+                            background: 'rgba(0,0,0,0.7)',
+                            border: 'none',
+                            color: 'white',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -602,11 +626,11 @@ export default function AdminPortal() {
 
         {/* Standalone Gallery Upload Section */}
         <section>
-          <h2 className={styles.sectionTitle}>Upload Gallery Images ({galleryFiles.length}/6)</h2>
+          <h2 className={styles.sectionTitle}>Upload Gallery Media ({galleryFiles.length}/6)</h2>
           <form onSubmit={handleGalleryUpload} className={styles.formGrid}>
             <label className={styles.label} style={{ gridColumn: '1 / -1' }}>
-              Select Images for Gallery (Max 6)
-              <input type="file" multiple accept=".jpeg,.jpg,.png" className={styles.fileInput} onChange={handleGalleryFileSelect} />
+              Select Images or Videos for Gallery (Max 6)
+              <input type="file" multiple accept="image/*,video/*" className={styles.fileInput} onChange={handleGalleryFileSelect} />
             </label>
 
             {/* Gallery Image Previews */}
@@ -614,38 +638,45 @@ export default function AdminPortal() {
               <div className={`${styles.label} ${styles.fullWidth}`}>
                 <p>Selected Gallery Images:</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '10px', marginTop: '10px' }}>
-                  {galleryPreviews.map((preview, index) => (
-                    <div key={index} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-                      <img src={preview} alt={`Gallery Preview ${index}`} style={{ width: '100%', height: '100px', objectFit: 'cover' }} />
-                      <button
-                        type="button"
-                        onClick={() => removeGalleryFile(index)}
-                        style={{
-                          position: 'absolute',
-                          top: '5px',
-                          right: '5px',
-                          background: 'rgba(0,0,0,0.7)',
-                          border: 'none',
-                          color: 'white',
-                          borderRadius: '50%',
-                          width: '24px',
-                          height: '24px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
+                  {galleryPreviews.map((preview, index) => {
+                    const isVideo = galleryFiles[index]?.type.startsWith('video/');
+                    return (
+                      <div key={index} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                        {isVideo ? (
+                          <video src={preview} style={{ width: '100%', height: '100px', objectFit: 'cover' }} muted />
+                        ) : (
+                          <img src={preview} alt={`Gallery Preview ${index}`} style={{ width: '100%', height: '100px', objectFit: 'cover' }} />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeGalleryFile(index)}
+                          style={{
+                            position: 'absolute',
+                            top: '5px',
+                            right: '5px',
+                            background: 'rgba(0,0,0,0.7)',
+                            border: 'none',
+                            color: 'white',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
             <button type="submit" className={styles.btn} style={{ gridColumn: '1 / -1' }} disabled={isUploadingGallery || galleryFiles.length === 0}>
-              {isUploadingGallery ? 'Uploading...' : 'Upload Gallery Images'}
+              {isUploadingGallery ? 'Uploading...' : 'Upload Gallery Media'}
             </button>
           </form>
         </section>

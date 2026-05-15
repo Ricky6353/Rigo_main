@@ -22,9 +22,11 @@ export default withAuth(
       }
     }
 
+    const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+
     // Admin portal and API protection
     if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
-      if (request.nextauth.token?.email !== 'jayembroyit@gmail.com') {
+      if (!request.nextauth.token?.email || !ADMIN_EMAILS.includes(request.nextauth.token.email)) {
         const url = request.nextUrl.clone();
         url.pathname = '/404';
         return NextResponse.rewrite(url);
@@ -42,5 +44,10 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ['/shop/:path*', '/admin/:path*', '/api/admin/:path*'],
+  matcher: [
+    '/shop/:path*', 
+    '/admin/:path*', 
+    // Match all api/admin except uploads which cause multipart stream issues with middleware
+    '/api/admin/((?!gallery|products).*)'
+  ],
 };

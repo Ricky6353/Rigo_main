@@ -81,12 +81,27 @@ export default function Home() {
             {latestDrops.map((product) => (
               <Link href={`/shop/${product.id}`} key={product.id} className={styles.productCard}>
                 <div className={styles.productImageWrapper}>
-                  <Image 
-                    src={product.image} 
-                    alt={product.name} 
-                    fill 
-                    className={styles.productImage} 
-                  />
+                  {product.image.toLowerCase().match(/\.(mp4|webm|mov|quicktime)$/) ? (
+                    <video 
+                      src={product.image} 
+                      className={styles.productImage} 
+                      muted 
+                      loop 
+                      autoPlay 
+                      playsInline 
+                      disablePictureInPicture
+                      disableRemotePlayback
+                      onContextMenu={(e) => e.preventDefault()}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <Image 
+                      src={product.image} 
+                      alt={product.name} 
+                      fill 
+                      className={styles.productImage} 
+                    />
+                  )}
                 </div>
                 <div className={styles.productInfo}>
                   <h3 className={styles.productName}>{product.name}</h3>

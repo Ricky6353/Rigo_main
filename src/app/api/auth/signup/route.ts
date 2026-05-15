@@ -34,7 +34,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
     }
 
-    const role: 'admin' | 'user' = email === 'jayembroyit@gmail.com' ? 'admin' : 'user';
+    const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+    const role: 'admin' | 'user' = ADMIN_EMAILS.includes(email) ? 'admin' : 'user';
     const result = await users.insertOne({
       name,
       email,

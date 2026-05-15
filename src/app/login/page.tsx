@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import styles from './Login.module.css';
 
-const ADMIN_EMAIL = 'jayembroyit@gmail.com';
+const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -17,13 +17,7 @@ export default function LoginPage() {
   const { login, recalledAccounts } = useAuth();
   const router = useRouter();
 
-  const handleRecall = (email: string, name: string) => {
-    setLoading(true);
-    setTimeout(() => {
-      login(email, name);
-      router.push('/');
-    }, 1000);
-  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +37,7 @@ export default function LoginPage() {
       // We still update local client state
       login(formData.email, formData.email.split('@')[0]);
 
-      if (formData.email.toLowerCase() === ADMIN_EMAIL) {
+      if (formData.email && ADMIN_EMAILS.includes(formData.email.toLowerCase())) {
         sessionStorage.setItem('adminAuth', 'true');
         router.push('/admin');
       } else {
@@ -66,31 +60,10 @@ export default function LoginPage() {
       >
         <div className={styles.header}>
           <h1>Welcome Back</h1>
-          <p>Sign in to recall your curated history.</p>
+          <p>Sign in to access your account.</p>
         </div>
 
-        {recalledAccounts.length > 0 && (
-          <div className={styles.recallSection}>
-            <p className={styles.recallLabel}>Recall Recent Account</p>
-            <div className={styles.accountList}>
-              {recalledAccounts.map((account) => (
-                <button 
-                  key={account.email} 
-                  className={styles.accountItem}
-                  onClick={() => handleRecall(account.email, account.name)}
-                  disabled={loading}
-                >
-                  <div className={styles.avatar}>{account.name[0]}</div>
-                  <div className={styles.accountInfo}>
-                    <span className={styles.name}>{account.name}</span>
-                    <span className={styles.email}>{account.email}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <div className={styles.divider}><span>or use another email</span></div>
-          </div>
-        )}
+
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.inputGroup}>

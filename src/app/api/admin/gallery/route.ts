@@ -1,9 +1,18 @@
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+      return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const galleryCount = parseInt(formData.get('galleryCount') as string) || 0;
 
@@ -25,9 +34,10 @@ export async function POST(req: Request) {
       
       if (!file) continue;
 
-      // Validate image type
-      if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
-        return Response.json({ success: false, error: 'Only JPEG and PNG formats are allowed' }, { status: 400 });
+      // Validate image/video type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'video/mp4', 'video/webm', 'video/quicktime'];
+      if (!allowedTypes.includes(file.type)) {
+        return Response.json({ success: false, error: 'Only JPEG, PNG and common video formats (MP4, WebM) are allowed' }, { status: 400 });
       }
 
       const bytes = await file.arrayBuffer();

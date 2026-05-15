@@ -1,29 +1,87 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CreditCard, CheckCircle, ArrowRight, CornerUpLeft } from 'lucide-react';
+import { CreditCard, CheckCircle, ArrowRight, CornerUpLeft, ShieldCheck, Lock } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import styles from './Checkout.module.css';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartTotal, clearCart } = useCart();
+  const searchParams = useSearchParams();
+  const { cartItems, cartTotal, clearCart } = useCart();
   const [status, setStatus] = useState<'idle' | 'processing' | 'success'>('idle');
+  const [shippingInfo, setShippingInfo] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    address: '',
+    city: '',
+    postalCode: '',
+  });
 
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'paypal'>('card');
-  // const [paymentMethod, setPaymentMethod] = useState<'card' | 'paypal'>('card');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Handle successful payment return from Stripe
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const sessionId = searchParams.get('session_id');
+
+    if (success === 'true' && sessionId) {
+      const captureOrder = async () => {
+        setStatus('processing');
+        try {
+          const res = await fetch('/api/stripe-capture', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId }),
+          });
+          
+          if (res.ok) {
+            setStatus('success');
+            clearCart();
+          } else {
+            console.error('Failed to capture order details');
+            setStatus('idle');
+          }
+        } catch (err) {
+          console.error('Order capture error:', err);
+          setStatus('idle');
+        }
+      };
+
+      captureOrder();
+    }
+  }, [searchParams, clearCart]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('processing');
     
-    // Mock Payment Processing
-    setTimeout(() => {
-      setStatus('success');
-      clearCart();
-    }, 2500);
+    try {
+      const res = await fetch('/api/stripe-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cartItems,
+          origin: window.location.origin,
+          email: shippingInfo.email,
+          shipping: shippingInfo
+        }),
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url; // Redirect to real Stripe page
+      } else {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Payment failed to initialize. Please check your connection.');
+      setStatus('idle');
+    }
   };
 
   if (status === 'success') {
@@ -56,77 +114,78 @@ export default function CheckoutPage() {
             <section className={styles.section}>
               <h2>1. Shipping Details</h2>
               <div className={styles.inputRow}>
-                <input type="text" placeholder="First Name" required />
-                <input type="text" placeholder="Last Name" required />
+                <input 
+                  type="text" 
+                  placeholder="First Name" 
+                  required 
+                  value={shippingInfo.firstName}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, firstName: e.target.value })}
+                />
+                <input 
+                  type="text" 
+                  placeholder="Last Name" 
+                  required 
+                  value={shippingInfo.lastName}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, lastName: e.target.value })}
+                />
               </div>
-              <input type="email" placeholder="Email Address" required />
-              <input type="text" placeholder="Address" required />
+              <input 
+                type="email" 
+                placeholder="Email Address" 
+                required 
+                value={shippingInfo.email}
+                onChange={(e) => setShippingInfo({ ...shippingInfo, email: e.target.value })}
+              />
+              <input 
+                type="text" 
+                placeholder="Address" 
+                required 
+                value={shippingInfo.address}
+                onChange={(e) => setShippingInfo({ ...shippingInfo, address: e.target.value })}
+              />
               <div className={styles.inputRow}>
-                <input type="text" placeholder="City" required />
-                <input type="text" placeholder="Postal Code" required />
+                <input 
+                  type="text" 
+                  placeholder="City" 
+                  required 
+                  value={shippingInfo.city}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
+                />
+                <input 
+                  type="text" 
+                  placeholder="Postal Code" 
+                  required 
+                  value={shippingInfo.postalCode}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, postalCode: e.target.value })}
+                />
               </div>
             </section>
 
             <section className={styles.section}>
-              <h2>2. Payment Information</h2>
-              <div className={styles.paymentSelector}>
-                <button 
-                  type="button"
-                  className={`${styles.methodBtn} ${paymentMethod === 'card' ? styles.activeMethod : ''}`}
-                  onClick={() => setPaymentMethod('card')}
-                >
-                  <CreditCard size={18} /> Card
-                </button>
-                {/* 
-                <button 
-                  type="button"
-                  className={`${styles.methodBtn} ${paymentMethod === 'paypal' ? styles.activeMethod : ''}`}
-                  onClick={() => setPaymentMethod('paypal')}
-                >
-                  <span>PayPal</span>
-                </button>
-                */}
+              <h2>2. Payment & Security</h2>
+              <div className={styles.stripeInfoBox}>
+                <div className={styles.stripeHeader}>
+                  <CreditCard size={20} /> <span>Credit Card & Digital Wallets</span>
+                </div>
+                <p className={styles.stripeNotice}>
+                  Payments are securely processed through **Stripe**. You will be redirected to an industry-standard encrypted and PCI-compliant gateway to finalize your order. Your sensitive payment details are never stored on our servers, ensuring maximum privacy and security.
+                </p>
+                <div className={styles.trustBadges}>
+                  <div className={styles.badgeItem}>
+                    <ShieldCheck size={14} /> <span>PCI-DSS Compliant</span>
+                  </div>
+                  <div className={styles.badgeItem}>
+                    <Lock size={14} /> <span>256-Bit SSL Encryption</span>
+                  </div>
+                </div>
               </div>
-
-              {paymentMethod === 'card' ? (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={styles.paymentBox}
-                >
-                  <div className={styles.paymentHeader}>
-                    <CreditCard size={20} /> <span>Credit Card</span>
-                  </div>
-                  <input type="text" placeholder="Card Number" required />
-                  <div className={styles.inputRow}>
-                    <input type="text" placeholder="MM/YY" required />
-                    <input type="text" placeholder="CVC" required />
-                  </div>
-                </motion.div>
-              ) : (
-                /*
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={styles.paypalBox}
-                >
-                  <div className={styles.paypalLogo}>
-                    <svg viewBox="0 0 24 24" width="48" height="48" fill="#003087">
-                      <path d="M20.067 8.178c-.552 2.766-2.52 4.149-5.903 4.149h-1.638c-.377 0-.712.261-.75.631l-.9 8.788c-.015.15-.141.261-.295.261h-3.413c-.15 0-.27-.112-.259-.261l.9-8.788c.038-.37.373-.631.75-.631h.75l.135-1.313a.262.262 0 0 1 .259-.236h1.226c2.723 0 4.316-1.121 4.778-3.344.202-.975.143-1.74-.176-2.295-.443-.765-1.391-1.076-2.839-1.076H9.379c-.377 0-.712.261-.75.631l-1.03 10.05-2.25 1.575a.262.262 0 0 1-.41-.214L7.152 2.651c.038-.37.373-.631.75-.631h7.871c3.086 0 5.093 1.503 5.4 3.018.318 1.549-.333 3.018-1.106 3.14z"/>
-                    </svg>
-                  </div>
-                  <p>You will be redirected to PayPal to complete your purchase securely.</p>
-                </motion.div>
-                */
-                null
-              )}
             </section>
 
             <button type="submit" className={styles.submitBtn} disabled={status === 'processing'}>
               {status === 'processing' ? (
-                'Redirecting...'
+                'Preparing Secure Checkout...'
               ) : (
-                paymentMethod === 'card' ? `Pay £${cartTotal}` : `Pay £${cartTotal}` // `Continue with PayPal`
+                `Proceed to Payment • £${cartTotal}`
               )}
             </button>
           </form>
