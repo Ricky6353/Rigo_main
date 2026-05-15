@@ -15,7 +15,6 @@ type User = {
 
 type AuthContextType = {
   user: User | null;
-  recalledAccounts: [];
   login: (email: string, name: string) => void;
   logout: () => void;
   addToWishlist: (productId: string) => void;
@@ -28,7 +27,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [recalledAccounts, setRecalledAccounts] = useState([]);
 
   const { data: session } = useSession();
 
@@ -113,7 +111,6 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ 
       user, 
-      recalledAccounts,
       login, 
       logout, 
       addToWishlist, 

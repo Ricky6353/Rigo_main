@@ -14,7 +14,7 @@ const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const { login, recalledAccounts } = useAuth();
+  const { login } = useAuth();
   const router = useRouter();
 
 
