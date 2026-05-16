@@ -16,7 +16,7 @@ async function main() {
     console.error('No MONGODB_URI found');
     return;
   }
-  const client = new MongoClient(uri);
+  const client = new MongoClient(uri, { tls: true });
   try {
     await client.connect();
     const db = client.db(process.env.MONGODB_DB);

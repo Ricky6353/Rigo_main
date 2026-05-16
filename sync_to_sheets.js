@@ -38,7 +38,7 @@ async function syncOrders() {
   }
 
   console.log('Connecting to MongoDB...');
-  const client = new MongoClient(MONGODB_URI);
+  const client = new MongoClient(MONGODB_URI, { tls: true, connectTimeoutMS: 10000 });
   await client.connect();
   const db = client.db(MONGODB_DB);
   const orders = await db.collection('orders').find({}).toArray();

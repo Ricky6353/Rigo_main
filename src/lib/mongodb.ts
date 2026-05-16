@@ -20,8 +20,9 @@ export async function getMongoClient() {
 
   if (!clientPromise) {
     const mongoClient = new MongoClient(uri, {
-      connectTimeoutMS: 5000,
-      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 10000,
+      tls: true,
     });
     clientPromise = mongoClient.connect();
   }
