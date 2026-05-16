@@ -35,5 +35,11 @@ export function getGoogleAuth(scopes: string[]) {
     scopes,
   });
 
+  // Set global options for googleapis to be more resilient on Windows
+  google.options({
+    auth: auth,
+    // Add a slight delay/retry or timeout if needed, but the handshake is the issue
+  });
+
   return auth;
 }
