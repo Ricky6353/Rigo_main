@@ -2,7 +2,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 function cleanEnv(value: string | undefined) {
   if (!value) return '';
-  return value.replace(/^["']|["']$/g, '').trim();
+  return value.replace(/^["']|["']$/g, '').replace(/\s+/g, '').trim();
+}
+
+export function isInvalidApiKeyError(message: string) {
+  return /invalid api key/i.test(message);
 }
 
 /** Resolve Supabase URL (Vercel integration may use SUPABASE_URL). */
@@ -68,6 +72,22 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder'
 );
 
+let cachedRead: SupabaseClient | null = null;
+
+/** Anon/publishable client for public SELECT (products, categories, reviews). */
+export function getSupabaseReadClient(): SupabaseClient | null {
+  const url = getSupabaseUrl();
+  const anonKey = getSupabaseAnonKey();
+  if (!url || !anonKey) return null;
+
+  if (!cachedRead) {
+    cachedRead = createClient(url, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return cachedRead;
+}
+
 let cachedAdmin: SupabaseClient | null = null;
 
 /** Lazy-init so API routes read env at request time (not stale import). */
@@ -81,10 +101,25 @@ export function getSupabaseAdmin(): SupabaseClient | null {
     return null;
   }
 
+  const anonKey = getSupabaseAnonKey();
+  if (anonKey && serviceKey === anonKey) {
+    console.error(
+      '[Supabase] SUPABASE_SERVICE_ROLE_KEY must be the secret key (sb_secret_...), not the publishable/anon key.'
+    );
+    return null;
+  }
+
   cachedAdmin = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   return cachedAdmin;
+}
+
+export function logInvalidServiceKeyHint(errorMessage: string) {
+  if (!isInvalidApiKeyError(errorMessage)) return;
+  console.error(
+    '[Supabase] Invalid API key for SUPABASE_SERVICE_ROLE_KEY. In Vercel, set it to the secret key from Supabase → Project Settings → API (sb_secret_...), matching NEXT_PUBLIC_SUPABASE_URL. Public shop reads use the publishable key instead.'
+  );
 }
 
 /** @deprecated Prefer getSupabaseAdmin() */

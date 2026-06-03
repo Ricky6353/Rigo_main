@@ -7,7 +7,13 @@ export function hashPassword(password: string) {
 }
 
 export function verifyPassword(password: string, stored: string) {
-  const [salt, hash] = stored.split(':');
+  if (!stored || typeof stored !== 'string') return false;
+
+  const colon = stored.indexOf(':');
+  if (colon < 0) return false;
+
+  const salt = stored.slice(0, colon);
+  const hash = stored.slice(colon + 1);
   if (!salt || !hash) {
     return false;
   }

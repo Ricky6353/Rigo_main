@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from './supabase';
+import { getSupabaseAdmin, getSupabaseReadClient, logInvalidServiceKeyHint } from './supabase';
 
 export type GalleryItem = {
   id: number;
@@ -30,16 +30,17 @@ function mapGalleryItem(row: GalleryRow): GalleryItem {
 }
 
 export async function fetchGalleryItems(): Promise<GalleryItem[]> {
-  const supabaseAdmin = getSupabaseAdmin();
-  if (!supabaseAdmin) return [];
+  const client = getSupabaseReadClient() ?? getSupabaseAdmin();
+  if (!client) return [];
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await client
     .from('gallery_items')
     .select('*')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 
   if (error) {
+    logInvalidServiceKeyHint(error.message);
     console.error('fetchGalleryItems error:', error.message);
     return [];
   }

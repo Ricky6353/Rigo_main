@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from './supabase';
+import { getSupabaseAdmin, getSupabaseReadClient, logInvalidServiceKeyHint } from './supabase';
 import { SUPABASE_BUCKETS, getBucketPublicUrl } from './supabaseBuckets';
 
 export type Product = {
@@ -71,6 +71,11 @@ function isMissingTableError(message: string) {
   return message.includes('schema cache') || message.includes('does not exist');
 }
 
+/** Public catalog tables allow anon SELECT; avoids broken service key on Vercel. */
+function getCatalogReadClient() {
+  return getSupabaseReadClient() ?? getSupabaseAdmin();
+}
+
 async function downloadCatalogJson<T>(filename: string, fallback: T): Promise<T> {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) return fallback;
@@ -95,15 +100,16 @@ async function uploadCatalogJson(filename: string, payload: unknown) {
 }
 
 export async function fetchAllProducts(): Promise<Product[]> {
-  const supabaseAdmin = getSupabaseAdmin();
-  if (!supabaseAdmin) return [];
+  const client = getCatalogReadClient();
+  if (!client) return [];
 
-  const { data, error } = await supabaseAdmin.from('products').select('*').order('name');
+  const { data, error } = await client.from('products').select('*').order('name');
   if (!error && data) {
     return (data as ProductRow[]).map(mapProductFromRow);
   }
 
   if (error && !isMissingTableError(error.message)) {
+    logInvalidServiceKeyHint(error.message);
     console.error('fetchAllProducts error:', error.message);
   }
 
@@ -183,13 +189,14 @@ export async function updateProductSoldOut(
 }
 
 export async function fetchAllCategories(): Promise<Category[]> {
-  const supabaseAdmin = getSupabaseAdmin();
-  if (!supabaseAdmin) return [];
+  const client = getCatalogReadClient();
+  if (!client) return [];
 
-  const { data, error } = await supabaseAdmin.from('categories').select('*').order('name');
+  const { data, error } = await client.from('categories').select('*').order('name');
   if (!error && data) return data as Category[];
 
   if (error && !isMissingTableError(error.message)) {
+    logInvalidServiceKeyHint(error.message);
     console.error('fetchAllCategories error:', error.message);
   }
 

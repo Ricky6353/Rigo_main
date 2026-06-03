@@ -218,7 +218,8 @@ export async function fetchOrdersFromSupabase(options?: {
   let query = supabaseAdmin.from('orders').select('*').order('order_date', { ascending: false });
 
   if (options?.email) {
-    query = query.or(`email.eq.${options.email},email_id.eq.${options.email}`);
+    const email = options.email.trim().toLowerCase();
+    query = query.eq('email', email);
   }
 
   const { data, error } = await query;

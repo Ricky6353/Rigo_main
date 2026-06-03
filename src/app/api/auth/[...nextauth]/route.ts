@@ -33,7 +33,7 @@ export const authOptions: NextAuthOptions = {
 
           if (error) {
             console.error("Supabase user lookup error:", error.message);
-            return null;
+            throw new Error("AUTH_DB_ERROR");
           }
 
           if (!user?.password || !verifyPassword(credentials.password, user.password)) {

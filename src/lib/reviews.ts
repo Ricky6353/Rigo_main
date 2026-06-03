@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from './supabase';
+import { getSupabaseAdmin, getSupabaseReadClient, logInvalidServiceKeyHint } from './supabase';
 import { SUPABASE_BUCKETS } from './supabaseBuckets';
 
 export type ProductReview = {
@@ -69,10 +69,10 @@ async function fetchAllReviewsFromStorage(): Promise<ProductReview[]> {
 }
 
 export async function fetchProductReviews(productId: string): Promise<ProductReview[]> {
-  const supabaseAdmin = getSupabaseAdmin();
-  if (!supabaseAdmin) return [];
+  const client = getSupabaseReadClient() ?? getSupabaseAdmin();
+  if (!client) return [];
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await client
     .from('product_reviews')
     .select('*')
     .eq('product_id', productId)
@@ -83,6 +83,7 @@ export async function fetchProductReviews(productId: string): Promise<ProductRev
   }
 
   if (error && !isMissingTableError(error.message)) {
+    logInvalidServiceKeyHint(error.message);
     console.error('fetchProductReviews error:', error.message);
   }
 

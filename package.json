@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "verify:supabase": "node scripts/verify-supabase-env.js",
+    "reset:admin": "node create_admin_supabase.js",
     "start": "next start",
     "lint": "eslint"
   },

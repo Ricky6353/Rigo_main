@@ -24,13 +24,41 @@ export async function POST(request: Request) {
       return supabaseNotConfiguredResponse();
     }
 
-    const { data: user } = await supabaseAdmin
+    const { data: user, error: lookupError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('email', email)
       .maybeSingle();
 
-    if (!user || !verifyPassword(password, user.password)) {
+    if (lookupError) {
+      console.error('Login Supabase lookup error:', lookupError.message);
+      return NextResponse.json(
+        { error: 'Unable to verify login. Check server Supabase configuration.' },
+        { status: 503 }
+      );
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: 'Invalid email or password',
+          hint: 'No account for this email. Sign up at /signup first.',
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!user.password) {
+      return NextResponse.json(
+        {
+          error: 'Invalid email or password',
+          hint: 'This account has no password. Sign up again or ask an admin to reset your password.',
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!verifyPassword(password, user.password)) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 

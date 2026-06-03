@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 function cleanEnv(value: string | undefined) {
   if (!value) return "";
-  return value.replace(/^["']|["']$/g, "").trim();
+  return value.replace(/^["']|["']$/g, "").replace(/\s+/g, "").trim();
 }
 
 function resolveSupabaseUrl() {
@@ -42,6 +42,14 @@ if (process.env.VERCEL === "1") {
       `[Supabase] Missing on Vercel: ${missing.join(", ")}. ` +
         "Add them under Project → Settings → Environment Variables (Production + Preview), then redeploy. " +
         "See .env.example in the repo."
+    );
+  }
+
+  const anon = resolveAnonKey();
+  const service = resolveServiceRoleKey();
+  if (anon && service && anon === service) {
+    throw new Error(
+      "[Supabase] SUPABASE_SERVICE_ROLE_KEY must be the secret key (sb_secret_...), not the same value as NEXT_PUBLIC_SUPABASE_ANON_KEY."
     );
   }
 }
