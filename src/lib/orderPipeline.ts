@@ -162,7 +162,11 @@ async function saveOrderJsonToBucket(order: OrderInput, supabaseRowId?: string |
     syncedAt: new Date().toISOString(),
   };
   const bucketResult = await uploadJsonToBucket(SUPABASE_BUCKETS.ORDERS, storagePath, payload);
-  return { ...bucketResult, storagePath };
+  return {
+    ok: bucketResult.ok,
+    reason: bucketResult.ok ? 'Success' : bucketResult.reason || 'Upload failed',
+    storagePath,
+  };
 }
 
 /** Step 1: Supabase DB + orders bucket. Step 2: Google Sheets from Supabase record. */
