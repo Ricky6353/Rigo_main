@@ -1,20 +1,20 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
+import { resolveRole } from '@/lib/adminConfig';
 
 export default withAuth(
   function proxy(request) {
     const { pathname } = request.nextUrl;
     
     // Define categories to redirect
-    const categories = ['tees', 'sweatshirt', 'hoodies'];
+    const categories = ['tees', 'polos', 'hoodies'];
     
     // Check if pathname matches /shop/[category]
     const shopMatch = pathname.match(/^\/shop\/([^/]+)$/);
     
     if (shopMatch) {
-      const slug = shopMatch[1];
-      if (categories.includes(slug)) {
-        // Redirect to /shop?category=slug
+      const slug = shopMatch[1] === 'sweatshirt' ? 'polos' : shopMatch[1];
+      if (categories.includes(slug) || shopMatch[1] === 'sweatshirt') {
         const url = request.nextUrl.clone();
         url.pathname = '/shop';
         url.searchParams.set('category', slug);
@@ -22,11 +22,13 @@ export default withAuth(
       }
     }
 
-    const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
-
     // Admin portal and API protection
     if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
-      if (!request.nextauth.token?.email || !ADMIN_EMAILS.includes(request.nextauth.token.email)) {
+      const email = request.nextauth.token?.email as string | undefined;
+      const role = request.nextauth.token?.role as string | undefined;
+      const isAdmin = email && resolveRole(email, role) === 'admin';
+
+      if (!isAdmin) {
         const url = request.nextUrl.clone();
         url.pathname = '/404';
         return NextResponse.rewrite(url);

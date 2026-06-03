@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 
-const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+import { isAdminEmail, normalizeEmail } from '@/lib/adminConfig';
 
 type User = {
   id: string;
@@ -50,7 +50,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setUser(socialUser);
 
       // Handle admin portal access via social login
-      if (session.user.email && ADMIN_EMAILS.includes(session.user.email)) {
+      if (session.user.email && isAdminEmail(normalizeEmail(session.user.email))) {
         sessionStorage.setItem('adminAuth', 'true');
       }
     }

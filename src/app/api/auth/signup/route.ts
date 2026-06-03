@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getMongoClient } from '@/lib/mongodb';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { hashPassword } from '@/lib/auth';
+import { persistAndSyncUser } from '@/lib/userPipeline';
 
 type SignupBody = {
   name?: string;
@@ -8,11 +9,13 @@ type SignupBody = {
   password?: string;
 };
 
+import { normalizeEmail, resolveRole } from '@/lib/adminConfig';
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as SignupBody;
     const name = (body.name || '').trim();
-    const email = (body.email || '').trim().toLowerCase();
+    const email = normalizeEmail(body.email || '');
     const password = body.password || '';
 
     if (!name || !email || !password) {
@@ -22,39 +25,60 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
     }
 
-    const client = await getMongoClient();
-    const dbName = process.env.MONGODB_DB;
-    if (!client || !dbName) {
-      return NextResponse.json({ error: 'MongoDB is not configured' }, { status: 500 });
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 });
     }
 
-    const users = client.db(dbName).collection('users');
-    const existing = await users.findOne({ email });
+    const { data: existing } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
     if (existing) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
     }
 
-    const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
-    const role: 'admin' | 'user' = ADMIN_EMAILS.includes(email) ? 'admin' : 'user';
-    const result = await users.insertOne({
+    const role = resolveRole(email);
+    const hashed = hashPassword(password);
+    const createdAt = new Date().toISOString();
+
+    const { data: newUser, error } = await supabaseAdmin
+      .from('users')
+      .insert([
+        {
+          name,
+          email,
+          password: hashed,
+          role,
+          created_at: createdAt,
+          updated_at: createdAt,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const syncResult = await persistAndSyncUser({
+      id: newUser.id,
       name,
       email,
-      password: hashPassword(password),
+      password: hashed,
       role,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      created_at: createdAt,
+      updated_at: createdAt,
     });
 
     return NextResponse.json({
       success: true,
-      user: {
-        id: result.insertedId.toString(),
-        name,
-        email,
-        role,
-      },
+      user: { id: newUser.id, name, email, role },
+      persistedToBucket: syncResult.bucketResult.ok,
+      syncedToSheets: syncResult.sheetResult.syncedToSheets,
     });
   } catch (error: unknown) {
+    console.error('Signup error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unable to create user' },
       { status: 500 }

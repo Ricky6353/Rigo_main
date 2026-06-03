@@ -1,36 +1,46 @@
 import { NextResponse } from 'next/server';
-import { getMongoClient } from '@/lib/mongodb';
-import { persistAndSyncOrder } from '@/lib/orderPipeline';
+import { getSupabaseAdmin } from '@/lib/supabase';
+import { mapOrderFromSupabase } from '@/lib/orderPipeline';
+import { syncOrderRecordToSheets } from '@/lib/sheetsSync';
+import { SUPABASE_BUCKETS, uploadJsonToBucket } from '@/lib/supabaseBuckets';
 
+/** Re-sync all Supabase orders to the orders bucket + Google Sheets (no MongoDB). */
 export async function GET() {
   try {
-    const client = await getMongoClient();
-    const dbName = process.env.MONGODB_DB;
-
-    if (!client || !dbName) {
-      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
     }
 
-    const collection = client.db(dbName).collection('orders');
-    const allOrders = await collection.find({}).toArray();
+    const { data: rows, error } = await supabaseAdmin.from('orders').select('*');
+    if (error) throw error;
 
     const results = [];
-    for (const order of allOrders) {
-      // Use the existing pipeline which handles de-duplication automatically
-      const result = await persistAndSyncOrder(order as any);
+    for (const row of rows || []) {
+      const order = mapOrderFromSupabase(row);
+      const storagePath = `records/${order.orderId}.json`;
+
+      await uploadJsonToBucket(SUPABASE_BUCKETS.ORDERS, storagePath, {
+        ...order,
+        supabase_id: row.id,
+        storage_path: storagePath,
+        resyncedAt: new Date().toISOString(),
+      });
+
+      const sheetResult = await syncOrderRecordToSheets({ ...order, storage_path: storagePath });
       results.push({
         id: order.orderId,
-        synced: result.sheetResult.syncedToSheets,
-        reason: result.sheetResult.reason
+        synced: sheetResult.syncedToSheets,
+        reason: sheetResult.reason,
       });
     }
 
     return NextResponse.json({
-      message: `Bulk sync processed ${allOrders.length} orders.`,
-      details: results
+      message: `Re-synced ${results.length} orders from Supabase to bucket + Sheets.`,
+      details: results,
     });
-
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Sync failed';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

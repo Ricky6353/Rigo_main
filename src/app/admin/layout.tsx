@@ -1,6 +1,15 @@
 import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { resolveRole } from "@/lib/adminConfig";
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  title: 'Admin',
+  description: 'Embroyit admin portal',
+  path: '/admin',
+  noIndex: true,
+});
 
 export default async function AdminLayout({
   children,
@@ -8,10 +17,10 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
+  // @ts-expect-error role from NextAuth JWT
+  const role = session?.user?.role as string | undefined;
 
-  const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
-
-  if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+  if (!session?.user?.email || resolveRole(session.user.email, role) !== 'admin') {
     notFound();
   }
 

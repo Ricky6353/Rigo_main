@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import styles from './Profile.module.css';
 import { Settings } from 'lucide-react';
 
-const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+import { isAdminEmail } from '@/lib/adminConfig';
 
 interface Order {
   orderId: string;
@@ -190,7 +190,7 @@ export default function ProfilePage() {
           </div>
         </motion.section>
 
-        {ADMIN_EMAILS.includes(user.email.toLowerCase()) && (
+        {isAdminEmail(user.email) && (
           <motion.section
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

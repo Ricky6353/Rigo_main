@@ -5,8 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ShoppingBag, ChevronLeft, Check, Info, Play, Pause } from 'lucide-react';
-import { products as initialProducts, Product } from '@/data/products';
+import type { Product } from '@/lib/catalog';
 import { useCart } from '@/components/CartProvider';
+import ProductReviews from '@/components/ProductReviews';
+import SizeChartModal from '@/components/SizeChartModal';
+import { getSizeChartForCategory } from '@/lib/sizeCharts';
 import styles from './ProductDetail.module.css';
 
 export default function ProductDetailPage() {
@@ -15,19 +18,23 @@ export default function ProductDetailPage() {
   
   // Redirect if id is actually a category name
   useEffect(() => {
-    const categoryNames = ['tees', 'sweatshirt', 'hoodies'];
+    const categoryNames = ['tees', 'polos', 'hoodies'];
     const id = params.id as string;
-    if (categoryNames.includes(id)) {
-      router.replace(`/shop?category=${id}`);
+    const categorySlug = id === 'sweatshirt' ? 'polos' : id;
+    if (categoryNames.includes(categorySlug) || id === 'sweatshirt') {
+      router.replace(`/shop?category=${categorySlug}`);
     }
   }, [params.id, router]);
 
   const { addToCart } = useCart();
-  const [product, setProduct] = useState<Product | undefined>(() => initialProducts.find((p) => p.id === params.id));
+  const [product, setProduct] = useState<Product | undefined>();
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [sizeChartOpen, setSizeChartOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const sizeChart = product ? getSizeChartForCategory(product.category) : null;
 
   const togglePlay = () => {
     if (videoRef.current) {
@@ -179,7 +186,15 @@ export default function ProductDetailPage() {
               <div className={styles.sizeSection}>
                 <div className={styles.sizeHeader}>
                   <label>Select Size</label>
-                  <button className={styles.sizeGuide}><Info size={14} /> Size Guide</button>
+                  {sizeChart && (
+                    <button
+                      type="button"
+                      className={styles.sizeGuide}
+                      onClick={() => setSizeChartOpen(true)}
+                    >
+                      <Info size={14} /> Size Chart
+                    </button>
+                  )}
                 </div>
                 <div className={styles.sizeGrid}>
                   {product.sizes.map((size) => {
@@ -241,9 +256,19 @@ export default function ProductDetailPage() {
                 ))}
               </ul>
             </div>
+
+            <ProductReviews productId={product.id} />
           </motion.div>
         </div>
       </div>
+
+      {sizeChart && (
+        <SizeChartModal
+          chart={sizeChart}
+          open={sizeChartOpen}
+          onClose={() => setSizeChartOpen(false)}
+        />
+      )}
     </main>
   );
 }

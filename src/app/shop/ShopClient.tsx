@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Product } from '@/data/products';
+import type { Product } from '@/lib/catalog';
 import styles from './Shop.module.css';
 import { useSearchParams } from 'next/navigation';
 

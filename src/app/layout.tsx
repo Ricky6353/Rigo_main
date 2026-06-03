@@ -3,17 +3,20 @@ import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Providers from '@/components/Providers';
+import JsonLd from '@/components/JsonLd';
+import {
+  localBusinessJsonLd,
+  organizationJsonLd,
+  rootMetadata,
+  websiteJsonLd,
+} from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Embroyit | Premium Embroidered Streetwear',
-  description: 'Premium streetwear combining high-quality embroidery with modern fits.',
-};
+export const metadata: Metadata = rootMetadata;
 
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
 };
 
 export default function RootLayout({
@@ -22,8 +25,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en-GB">
       <body>
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd(), localBusinessJsonLd()]} />
         <Providers>
           <Navbar />
           {children}

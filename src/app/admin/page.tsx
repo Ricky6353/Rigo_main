@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { notFound } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { products as initialProducts, Product } from '@/data/products';
+import type { Product } from '@/lib/catalog';
 import styles from './Admin.module.css';
 import { X, Download, BarChart3, Trash2 } from 'lucide-react';
 
-const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+import { isAdminEmail, normalizeEmail } from '@/lib/adminConfig';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
 
 export default function AdminPortal() {
@@ -49,7 +49,7 @@ export default function AdminPortal() {
   useEffect(() => {
     const storedUser = localStorage.getItem('embroyit_user');
     const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-    const isAdminUser = parsedUser?.email && ADMIN_EMAILS.includes(parsedUser.email);
+    const isAdminUser = parsedUser?.email && isAdminEmail(normalizeEmail(parsedUser.email));
     
     if (isAdminUser) {
       setIsAuthenticated(true);
@@ -60,9 +60,19 @@ export default function AdminPortal() {
       sessionStorage.removeItem('adminAuth');
     }
 
-    setProductsList(initialProducts);
+    fetchProducts();
     fetchCategories();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      if (Array.isArray(data)) setProductsList(data);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+    }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -610,7 +620,7 @@ export default function AdminPortal() {
               {categories.map(cat => (
                 <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 15px', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '25px' }}>
                   <span>{cat.name}</span>
-                  {!['tees', 'sweatshirt', 'hoodies'].includes(cat.id) && (
+                  {!['tees', 'polos', 'hoodies'].includes(cat.id) && (
                     <button 
                       onClick={() => handleDeleteCategory(cat.id, cat.name)}
                       style={{ background: 'transparent', border: 'none', color: '#ff6b6b', cursor: 'pointer', padding: 0, display: 'flex' }}

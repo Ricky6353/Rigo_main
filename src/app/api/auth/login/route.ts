@@ -1,31 +1,33 @@
 import { NextResponse } from 'next/server';
-import { getMongoClient } from '@/lib/mongodb';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { verifyPassword } from '@/lib/auth';
 
 type LoginBody = {
   email?: string;
   password?: string;
 };
-const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+import { normalizeEmail, resolveRole } from '@/lib/adminConfig';
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as LoginBody;
-    const email = (body.email || '').trim().toLowerCase();
+    const email = normalizeEmail(body.email || '');
     const password = body.password || '';
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    const client = await getMongoClient();
-    const dbName = process.env.MONGODB_DB;
-    if (!client || !dbName) {
-      return NextResponse.json({ error: 'MongoDB is not configured' }, { status: 500 });
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 });
     }
 
-    const users = client.db(dbName).collection('users');
-    const user = await users.findOne<{ _id: { toString: () => string }; name: string; email: string; password: string; role?: string }>({ email });
+    const { data: user } = await supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
 
     if (!user || !verifyPassword(password, user.password)) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
@@ -34,13 +36,14 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       user: {
-        id: user._id.toString(),
+        id: user.id.toString(),
         name: user.name,
         email: user.email,
-        role: ADMIN_EMAILS.includes(user.email) ? 'admin' : 'user',
+        role: resolveRole(email, user.role),
       },
     });
   } catch (error: unknown) {
+    console.error('Login error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unable to login' },
       { status: 500 }

@@ -12,6 +12,7 @@
     "@paypal/react-paypal-js": "^9.1.0",
     "@stripe/react-stripe-js": "^6.1.0",
     "@stripe/stripe-js": "^9.1.0",
+    "@supabase/supabase-js": "^2.105.4",
     "dotenv": "^17.4.2",
     "framer-motion": "^12.38.0",
     "googleapis": "^171.4.0",
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "pg": "^8.21.0",
     "typescript": "^5"
   }
 }

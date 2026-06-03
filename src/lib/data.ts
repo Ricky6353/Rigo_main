@@ -40,7 +40,7 @@ export const products: Product[] = [
     id: '4',
     name: 'Logo Beanie - Black',
     price: 35,
-    category: 'sweatshirt',
+    category: 'polos',
     image: '/hoodie.png', // Placeholder
     description: 'Classic ribbed knitted beanie featuring a small Embroyit logo patch.',
   }

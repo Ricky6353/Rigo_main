@@ -87,9 +87,6 @@ export default function Footer() {
             <h4 className={styles.heading}>Support</h4>
             <ul className={styles.list}>
               <li><Link href="/shipping">Shipping & Returns</Link></li>
-              <li><Link href="/size-guide">Size Guide</Link></li>
-              <li><Link href="/contact">Contact Us</Link></li>
-              <li><Link href="/faq">FAQ</Link></li>
             </ul>
           </div>
 
@@ -111,7 +108,9 @@ export default function Footer() {
               </a>
             </div>
             <p className={styles.supportQuery}>
-              Need assistance? <Link href="/contact">Chat with us</Link>
+              Need assistance:
+              <br />
+              <a href="mailto:support@embroyit.co.uk">support@embroyit.co.uk</a>
             </p>
           </div>
         </div>

@@ -1,24 +1,12 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
-// import GoogleProvider from "next-auth/providers/google";
-// import AppleProvider from "next-auth/providers/apple";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { getMongoClient } from "@/lib/mongodb";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { verifyPassword } from "@/lib/auth";
-
-const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+import { persistAndSyncUser } from "@/lib/userPipeline";
+import { normalizeEmail, resolveRole, isAdminEmail } from "@/lib/adminConfig";
 
 export const authOptions: NextAuthOptions = {
   providers: [
-/*
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    }),
-    AppleProvider({
-      clientId: process.env.APPLE_ID || "",
-      clientSecret: process.env.APPLE_TEAM_ID || "",
-    }),
-    */
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -27,26 +15,43 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
-        
-        try {
-          const client = await getMongoClient();
-          const dbName = process.env.MONGODB_DB;
-          if (!client || !dbName) return null;
 
-          const users = client.db(dbName).collection('users');
-          const email = credentials.email.toLowerCase();
-          
-          const user = await users.findOne<{ _id: any; name: string; email: string; password?: string; role?: string }>({ email });
-          
-          if (!user || !user.password || !verifyPassword(credentials.password, user.password)) {
+        try {
+          const supabaseAdmin = getSupabaseAdmin();
+          if (!supabaseAdmin) {
+            console.error("Supabase admin client not configured — check SUPABASE_SERVICE_ROLE_KEY");
             return null;
           }
 
+          const email = normalizeEmail(credentials.email);
+
+          const { data: user, error } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .maybeSingle();
+
+          if (error) {
+            console.error("Supabase user lookup error:", error.message);
+            return null;
+          }
+
+          if (!user?.password || !verifyPassword(credentials.password, user.password)) {
+            return null;
+          }
+
+          const role = resolveRole(email, user.role);
+
+          // Keep Supabase role in sync for admin emails
+          if (role === 'admin' && user.role !== 'admin') {
+            await supabaseAdmin.from('users').update({ role: 'admin', updated_at: new Date().toISOString() }).eq('id', user.id);
+          }
+
           return {
-            id: user._id.toString(),
+            id: user.id.toString(),
             name: user.name,
             email: user.email,
-            role: ADMIN_EMAILS.includes(user.email) ? 'admin' : 'user',
+            role,
           };
         } catch (error) {
           console.error("Credentials Auth Error:", error);
@@ -56,48 +61,93 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = (user as { role?: string }).role || 'user';
+        if (user.email) token.email = normalizeEmail(user.email);
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        const email = session.user.email ? normalizeEmail(session.user.email) : '';
+        session.user.email = email || session.user.email;
+        // @ts-expect-error extended session user
+        session.user.role = resolveRole(email, token.role as string);
+        // @ts-expect-error extended session user
+        session.user.id = token.id as string;
+      }
+      return session;
+    },
     async signIn({ user, account }) {
       if (!user.email) return false;
 
       try {
-        const client = await getMongoClient();
-        const dbName = process.env.MONGODB_DB;
-        if (!client || !dbName) return true;
+        const supabaseAdmin = getSupabaseAdmin();
+        if (!supabaseAdmin) return true;
 
-        const users = client.db(dbName).collection('users');
-        const email = user.email.toLowerCase();
-        
-        const existingUser = await users.findOne({ email });
+        const email = normalizeEmail(user.email);
+
+        const { data: existingUser } = await supabaseAdmin
+          .from('users')
+          .select('id, role')
+          .eq('email', email)
+          .maybeSingle();
 
         if (!existingUser) {
-          // Sync with the same schema as manual signup
-          await users.insertOne({
-            name: user.name || email.split('@')[0],
-            email: email,
-            role: ADMIN_EMAILS.includes(email) ? 'admin' : 'user',
-            image: user.image,
-            authType: account?.provider,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
+          const role = resolveRole(email);
+          const createdAt = new Date().toISOString();
+          const { data: newUser } = await supabaseAdmin
+            .from('users')
+            .insert([
+              {
+                name: user.name || email.split('@')[0],
+                email,
+                role,
+                image: user.image,
+                auth_type: account?.provider,
+                created_at: createdAt,
+                updated_at: createdAt,
+              },
+            ])
+            .select()
+            .single();
+
+          if (newUser) {
+            await persistAndSyncUser({
+              id: newUser.id,
+              name: newUser.name,
+              email: newUser.email,
+              role: newUser.role,
+              created_at: createdAt,
+              updated_at: createdAt,
+              auth_type: account?.provider,
+              image: user.image,
+            });
+          }
+        } else if (isAdminEmail(email) && existingUser.role !== 'admin') {
+          await supabaseAdmin
+            .from('users')
+            .update({ role: 'admin', updated_at: new Date().toISOString() })
+            .eq('id', existingUser.id);
         }
+
         return true;
       } catch (error) {
         console.error("Error in NextAuth signIn callback:", error);
-        return true; // Allow login even if DB sync fails
+        return true;
       }
-    },
-    async session({ session }) {
-      if (session.user) {
-        // @ts-ignore
-        session.user.role = session.user.email && ADMIN_EMAILS.includes(session.user.email) ? 'admin' : 'user';
-      }
-      return session;
     },
   },
   pages: {
     signIn: '/login',
   },
+  session: {
+    strategy: 'jwt',
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === 'development',
 };
 
 const handler = NextAuth(authOptions);

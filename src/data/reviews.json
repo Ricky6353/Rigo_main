@@ -1,0 +1,18 @@
+[
+  {
+    "id": "1779815883182-nsq2j8r",
+    "productId": "h1",
+    "authorName": "Test User",
+    "rating": 5,
+    "comment": "Great quality embroidery and fit.",
+    "createdAt": "2026-05-26T17:18:03.182Z"
+  },
+  {
+    "id": "1779817409060-2tk0cwl",
+    "productId": "h1",
+    "authorName": "Ricky",
+    "rating": 5,
+    "comment": "Great Product!!",
+    "createdAt": "2026-05-26T17:43:29.060Z"
+  }
+]

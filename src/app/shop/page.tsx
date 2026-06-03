@@ -1,26 +1,30 @@
-import fs from 'fs';
-import path from 'path';
 import { Suspense } from 'react';
 import ShopClient from './ShopClient';
+import JsonLd from '@/components/JsonLd';
+import { fetchAllCategories, fetchAllProducts } from '@/lib/catalog';
+import { SITE_URL } from '@/lib/seo';
 
 export default async function ShopPage() {
-  // Fetch products & categories directly on the server from the JSON files
-  const dataPath = path.join(process.cwd(), 'src', 'data', 'products.json');
-  const catPath = path.join(process.cwd(), 'src', 'data', 'categories.json');
-  
-  let products = [];
-  let categories = [];
-  
-  try {
-    products = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-    categories = JSON.parse(fs.readFileSync(catPath, 'utf8'));
-  } catch (err) {
-    console.error('Error reading data:', err);
-  }
+  const [products, categories] = await Promise.all([fetchAllProducts(), fetchAllCategories()]);
+
+  const itemListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Embroyit embroidered clothing UK',
+    itemListElement: products.map((product, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      url: `${SITE_URL}/shop/${product.id}`,
+      name: product.name,
+    })),
+  };
 
   return (
-    <Suspense fallback={<div style={{ padding: '100px', textAlign: 'center' }}>Loading Collections...</div>}>
-      <ShopClient initialProducts={products} dynamicCategories={categories} />
-    </Suspense>
+    <>
+      <JsonLd data={itemListJsonLd} />
+      <Suspense fallback={<div style={{ padding: '100px', textAlign: 'center' }}>Loading Collections...</div>}>
+        <ShopClient initialProducts={products} dynamicCategories={categories} />
+      </Suspense>
+    </>
   );
 }

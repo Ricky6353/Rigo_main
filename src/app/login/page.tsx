@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import styles from './Login.module.css';
 
-const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+import { isAdminEmail, normalizeEmail } from '@/lib/adminConfig';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -24,20 +24,38 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const email = normalizeEmail(formData.email);
+
+      // Verify against Supabase first (clearer errors than NextAuth alone)
+      const checkRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: formData.password }),
+      });
+      const checkData = await checkRes.json().catch(() => ({}));
+
+      if (!checkRes.ok) {
+        throw new Error(checkData.error || 'Invalid email or password');
+      }
+
       const result = await signIn('credentials', {
         redirect: false,
-        email: formData.email,
+        email,
         password: formData.password,
       });
 
       if (result?.error) {
-        throw new Error('Invalid email or password');
+        console.error('NextAuth signIn error:', result.error);
+        throw new Error(
+          result.error === 'CredentialsSignin'
+            ? 'Session could not be created. Restart the dev server (npm run dev) and try again.'
+            : `Login failed (${result.error})`
+        );
       }
 
-      // We still update local client state
-      login(formData.email, formData.email.split('@')[0]);
+      login(email, checkData.user?.name || email.split('@')[0]);
 
-      if (formData.email && ADMIN_EMAILS.includes(formData.email.toLowerCase())) {
+      if (isAdminEmail(email)) {
         sessionStorage.setItem('adminAuth', 'true');
         router.push('/admin');
       } else {

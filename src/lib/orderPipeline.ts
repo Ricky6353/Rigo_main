@@ -1,32 +1,6 @@
-import { google, sheets_v4 } from 'googleapis';
-import { getMongoClient } from '@/lib/mongodb';
-import { getGoogleAuth } from './googleAuth';
-
-const ORDERS_SHEET_NAME = 'DailyOrders';
-const HEADER_ROW = [
-  'orderId',
-  'orderDate',
-  'customerName',
-  'contact',
-  'phoneNumber',
-  'email',
-  'emailId',
-  'address',
-  'city',
-  'postalCode',
-  'items',
-  'itemCount',
-  'total',
-  'paymentMethod',
-  'transactionId',
-  'customizationLink',
-  'customizationInstructions',
-];
-
-interface SyncResult {
-  syncedToSheets: boolean;
-  reason: string;
-}
+import { getSupabaseAdmin } from '@/lib/supabase';
+import { SUPABASE_BUCKETS, uploadJsonToBucket } from './supabaseBuckets';
+import { syncOrderRecordToSheets } from './sheetsSync';
 
 export interface OrderItemInput {
   id?: string;
@@ -60,67 +34,8 @@ export interface OrderInput {
   customizationInstructions?: string;
 }
 
-function getSheetsClient() {
-  const spreadsheetId = process.env.GOOGLE_ORDERS_SPREADSHEET_ID || process.env.GOOGLE_SPREADSHEET_ID;
-  const auth = getGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
-
-  if (!auth || !spreadsheetId) {
-    return null;
-  }
-
-  const sheets = google.sheets({ version: 'v4', auth });
-  return { sheets, spreadsheetId };
-}
-
-async function ensureSheetAndHeader(sheets: sheets_v4.Sheets, spreadsheetId: string) {
-  const metadata = await sheets.spreadsheets.get({ spreadsheetId });
-  const titleExists = metadata.data.sheets?.some((sheet) => sheet.properties?.title === ORDERS_SHEET_NAME);
-
-  if (!titleExists) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [{ addSheet: { properties: { title: ORDERS_SHEET_NAME } } }],
-      },
-    });
-  }
-
-  const headerResponse = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${ORDERS_SHEET_NAME}!A1:Q1`,
-  });
-  const currentHeader = headerResponse.data.values?.[0] || [];
-  if (!currentHeader.length || currentHeader.length < HEADER_ROW.length) {
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${ORDERS_SHEET_NAME}!A1:Q1`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [HEADER_ROW] },
-    });
-  }
-}
-
-function formatOrderRow(order: OrderInput) {
-  const items = order.items.map((item) => `${item.name}${item.size ? ` (${item.size})` : ''} x${item.quantity}`).join(' | ');
-  return [
-    order.orderId,
-    order.orderDate,
-    order.customerName,
-    order.contact,
-    `'${order.phoneNumber}`,
-    order.email,
-    order.emailId,
-    order.address,
-    order.city,
-    order.postalCode,
-    items,
-    order.itemCount,
-    order.total,
-    order.paymentMethod,
-    order.transactionId,
-    order.customizationLink,
-    order.customizationInstructions,
-  ];
+function orderStoragePath(orderId: string) {
+  return `records/${orderId}.json`;
 }
 
 function normalizeOrder(order: Partial<OrderInput>): OrderInput {
@@ -154,94 +69,165 @@ function normalizeOrder(order: Partial<OrderInput>): OrderInput {
   };
 }
 
-async function saveOrderToDatabase(order: OrderInput) {
-  const client = await getMongoClient();
-  const dbName = process.env.MONGODB_DB;
-
-  if (!client || !dbName) {
-    return { persistedToDb: false, reason: 'MongoDB not configured' };
-  }
-
-  const collection = client.db(dbName).collection('orders');
-  
-  // Define filter to find existing order
-  const filter = order.stripeSessionId 
-    ? { stripeSessionId: order.stripeSessionId } 
-    : { orderId: order.orderId };
-
-  // Use updateOne with upsert to prevent race conditions
-  const result = await collection.updateOne(
-    filter,
-    { 
-      $setOnInsert: { 
-        ...order,
-        createdAt: new Date(),
-      },
-      $set: {
-        updatedAt: new Date(),
-      }
-    },
-    { upsert: true }
-  );
-
-  const duplicate = result.matchedCount > 0;
-  return { 
-    persistedToDb: true, 
-    duplicate, 
-    insertedId: result.upsertedId || (duplicate ? (await collection.findOne(filter))?._id : null) 
+/** Map Supabase row (snake_case) to API camelCase. */
+export function mapOrderFromSupabase(row: Record<string, unknown>): OrderInput & { id?: string | number } {
+  return {
+    id: row.id as string | number | undefined,
+    orderId: (row.order_id as string) || '',
+    orderDate: (row.order_date as string) || '',
+    customerName: (row.customer_name as string) || '',
+    contact: (row.contact as string) || (row.phone_number as string) || '',
+    phoneNumber: (row.phone_number as string) || (row.contact as string) || '',
+    email: (row.email as string) || '',
+    emailId: (row.email as string) || '',
+    address: (row.address as string) || '',
+    city: (row.city as string) || '',
+    postalCode: (row.postal_code as string) || '',
+    items: (row.items as OrderItemInput[]) || [],
+    itemCount: Number(row.item_count ?? 0),
+    total: Number(row.total ?? 0),
+    paymentMethod: (row.payment_method as string) || '',
+    transactionId: (row.transaction_id as string) || '',
+    stripeSessionId: row.stripe_session_id as string | undefined,
+    stripePaymentIntentId: row.stripe_payment_intent_id as string | null | undefined,
+    status: (row.status as string) || 'paid',
+    source: (row.source as string) || 'web',
+    customizationLink: (row.customization_link as string) || '',
+    customizationInstructions: (row.customization_instructions as string) || '',
   };
 }
 
-async function appendOrderToGoogleSheets(order: OrderInput): Promise<SyncResult> {
-  const auth = getSheetsClient();
-  if (!auth) {
-    return { syncedToSheets: false, reason: 'Google Sheets not configured' };
+async function saveOrderToSupabase(order: OrderInput) {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return { persistedToDb: false, reason: 'Supabase admin client not initialized' };
   }
 
-  const { sheets, spreadsheetId } = auth;
-  await ensureSheetAndHeader(sheets, spreadsheetId);
   try {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: `${ORDERS_SHEET_NAME}!A:Q`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [formatOrderRow(order)] },
-    });
-    console.log(`Successfully synced order ${order.orderId} to Google Sheets.`);
-    return { syncedToSheets: true, reason: 'Success' };
-  } catch (err: any) {
-    console.error(`Failed to sync order ${order.orderId} to Google Sheets:`, err.message);
-    return { syncedToSheets: false, reason: err.message };
+    const { data: existingOrder } = await supabaseAdmin
+      .from('orders')
+      .select('id')
+      .or(`order_id.eq.${order.orderId}${order.stripeSessionId ? `,stripe_session_id.eq.${order.stripeSessionId}` : ''}`)
+      .maybeSingle();
+
+    if (existingOrder) {
+      return { persistedToDb: true, duplicate: true, insertedId: existingOrder.id };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('orders')
+      .insert([
+        {
+          order_id: order.orderId,
+          order_date: order.orderDate,
+          customer_name: order.customerName,
+          contact: order.contact,
+          phone_number: order.phoneNumber,
+          email: order.email,
+          address: order.address,
+          city: order.city,
+          postal_code: order.postalCode,
+          items: order.items,
+          item_count: order.itemCount,
+          total: order.total,
+          payment_method: order.paymentMethod,
+          transaction_id: order.transactionId,
+          stripe_session_id: order.stripeSessionId,
+          stripe_payment_intent_id: order.stripePaymentIntentId,
+          status: order.status,
+          source: order.source,
+          customization_link: order.customizationLink,
+          customization_instructions: order.customizationInstructions,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return { persistedToDb: true, duplicate: false, insertedId: data.id, row: data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Supabase order save error:', message);
+    return { persistedToDb: false, reason: message };
   }
 }
 
+async function saveOrderJsonToBucket(order: OrderInput, supabaseRowId?: string | number) {
+  const storagePath = orderStoragePath(order.orderId);
+  const payload = {
+    ...order,
+    supabase_id: supabaseRowId,
+    storage_path: storagePath,
+    syncedAt: new Date().toISOString(),
+  };
+  const bucketResult = await uploadJsonToBucket(SUPABASE_BUCKETS.ORDERS, storagePath, payload);
+  return { ...bucketResult, storagePath };
+}
+
+/** Step 1: Supabase DB + orders bucket. Step 2: Google Sheets from Supabase record. */
 export async function persistAndSyncOrder(payload: Partial<OrderInput>) {
   const order = normalizeOrder(payload);
   console.log(`Processing order ${order.orderId} from ${order.source}...`);
 
-  // Try DB first
-  let dbResult: any = { persistedToDb: false, reason: 'Pending' };
+  let dbResult: Record<string, unknown> = { persistedToDb: false, reason: 'Pending' };
   try {
-    dbResult = await saveOrderToDatabase(order);
-    console.log(`DB persistence for ${order.orderId}: ${dbResult.persistedToDb ? 'SUCCESS' : 'FAILED'} (${dbResult.reason || 'No reason'})`);
-  } catch (dbErr: any) {
-    console.error(`Critical DB Error for ${order.orderId}:`, dbErr.message);
-    dbResult = { persistedToDb: false, reason: dbErr.message };
+    dbResult = await saveOrderToSupabase(order);
+    console.log(
+      `DB persistence for ${order.orderId}: ${dbResult.persistedToDb ? 'SUCCESS' : 'FAILED'} (${dbResult.reason || 'ok'})`
+    );
+  } catch (dbErr: unknown) {
+    const message = dbErr instanceof Error ? dbErr.message : 'Unknown error';
+    console.error(`Critical DB Error for ${order.orderId}:`, message);
+    dbResult = { persistedToDb: false, reason: message };
   }
-  
-  // Try Sheets regardless of DB failure (unless it's a known duplicate)
-  let sheetResult: SyncResult = { syncedToSheets: false, reason: 'Pending' };
-  if (!dbResult.duplicate) {
-    try {
-      sheetResult = (await appendOrderToGoogleSheets(order)) as SyncResult;
-      console.log(`Sheet sync for ${order.orderId}: ${sheetResult.syncedToSheets ? 'SUCCESS' : 'FAILED'}`);
-    } catch (sheetErr: any) {
-      console.error(`Critical Sheet Error for ${order.orderId}:`, sheetErr.message);
-      sheetResult = { syncedToSheets: false, reason: sheetErr.message };
-    }
-  } else {
-    console.log(`Skipping Sheet sync for ${order.orderId} (Duplicate detected)`);
+
+  let bucketResult = { ok: false, reason: 'DB save required first', storagePath: orderStoragePath(order.orderId) };
+  if (dbResult.persistedToDb) {
+    bucketResult = await saveOrderJsonToBucket(order, dbResult.insertedId as string | number);
   }
-  
-  return { order, dbResult, sheetResult };
+
+  let sheetResult = { syncedToSheets: false, reason: 'Pending' };
+  if (dbResult.persistedToDb && !dbResult.duplicate) {
+    sheetResult = await syncOrderRecordToSheets({
+      ...order,
+      storage_path: bucketResult.storagePath,
+    });
+    console.log(`Sheet sync for ${order.orderId}: ${sheetResult.syncedToSheets ? 'SUCCESS' : 'FAILED'}`);
+  } else if (dbResult.duplicate) {
+    sheetResult = { syncedToSheets: false, reason: 'Duplicate order — skipped Sheets append' };
+  }
+
+  return { order, dbResult, bucketResult, sheetResult };
+}
+
+export async function fetchOrdersFromSupabase(options?: {
+  startDate?: string;
+  endDate?: string;
+  email?: string;
+}) {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return { orders: [], error: 'Supabase not configured' };
+  }
+
+  let query = supabaseAdmin.from('orders').select('*').order('order_date', { ascending: false });
+
+  if (options?.email) {
+    query = query.or(`email.eq.${options.email},email_id.eq.${options.email}`);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  let orders = (data || []).map((row) => mapOrderFromSupabase(row));
+
+  if (options?.startDate && options?.endDate) {
+    orders = orders.filter((order) => {
+      const orderDate = order.orderDate?.slice(0, 10);
+      return orderDate >= options.startDate! && orderDate <= options.endDate!;
+    });
+  }
+
+  return { orders, error: null };
 }

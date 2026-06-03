@@ -1,15 +1,25 @@
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { resolveRole } from '@/lib/adminConfig';
+import { createGalleryItem, fetchGalleryItems } from '@/lib/gallery';
+import { uploadGalleryMedia } from '@/lib/catalog';
 
-const ADMIN_EMAILS = ['embroyitltdjay@gmail.com', 'embroyitricky@gmail.com'];
+export async function GET() {
+  try {
+    const items = await fetchGalleryItems();
+    return NextResponse.json({ success: true, items });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to load gallery';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+    // @ts-expect-error role from session
+    if (!session?.user?.email || resolveRole(session.user.email, session.user.role) !== 'admin') {
       return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -20,35 +30,43 @@ export async function POST(req: Request) {
       return Response.json({ success: false, error: 'No images provided' }, { status: 400 });
     }
 
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'gallery');
-    
-    // Ensure directory exists
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
     const uploadedImages: string[] = [];
 
     for (let i = 0; i < galleryCount; i++) {
       const file = formData.get(`gallery_${i}`) as File;
-      
       if (!file) continue;
 
-      // Validate image/video type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'video/mp4', 'video/webm', 'video/quicktime'];
+      const allowedTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'video/mp4',
+        'video/webm',
+        'video/quicktime',
+      ];
       if (!allowedTypes.includes(file.type)) {
-        return Response.json({ success: false, error: 'Only JPEG, PNG and common video formats (MP4, WebM) are allowed' }, { status: 400 });
+        return Response.json(
+          { success: false, error: 'Only JPEG, PNG and common video formats (MP4, WebM) are allowed' },
+          { status: 400 }
+        );
       }
 
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      
-      const filename = `${Date.now()}_${i}_${file.name}`;
-      const filepath = join(uploadDir, filename);
-      
-      await writeFile(filepath, buffer);
-      
-      uploadedImages.push(`/uploads/gallery/${filename}`);
+      const uploaded = await uploadGalleryMedia(file);
+      if (!uploaded?.url) {
+        return Response.json({ success: false, error: 'Failed to upload to Supabase gallery bucket' }, { status: 500 });
+      }
+
+      const { error } = await createGalleryItem({
+        url: uploaded.url,
+        storagePath: uploaded.path,
+        mimeType: file.type,
+      });
+
+      if (error) {
+        return Response.json({ success: false, error }, { status: 500 });
+      }
+
+      uploadedImages.push(uploaded.url);
     }
 
     return Response.json({
@@ -58,9 +76,6 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error('Gallery upload error:', error);
-    return Response.json(
-      { success: false, error: 'Failed to upload gallery images' },
-      { status: 500 }
-    );
+    return Response.json({ success: false, error: 'Failed to upload gallery images' }, { status: 500 });
   }
 }

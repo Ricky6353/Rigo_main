@@ -2,8 +2,11 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Download } from 'lucide-react';
 import styles from './Customization.module.css';
+
+const REFERENCE_PDF = '/references/reference.pdf';
+const REFERENCE_PDF_NAME = 'Reference.pdf';
 
 export default function CustomizationPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -11,28 +14,25 @@ export default function CustomizationPage() {
   const [email, setEmail] = useState('');
   const [countryCode, setCountryCode] = useState('+44');
   const [phone, setPhone] = useState('');
-  const [instructions, setInstructions] = useState('');
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
   const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-  const ALLOWED_TYPES = [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-  ];
+  const isPdfFile = (selectedFile: File) =>
+    selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    if (!ALLOWED_TYPES.includes(selectedFile.type)) {
-      setErrorMsg('Only PDF and DOCX files are allowed.');
+    if (!isPdfFile(selectedFile)) {
+      setErrorMsg('Only PDF files are allowed.');
       setFile(null);
       return;
     }
 
-    if (selectedFile.size > MAX_FILE_SIZE) {
-      setErrorMsg('File size exceeds 20MB limit.');
+    if (selectedFile.size >= MAX_FILE_SIZE) {
+      setErrorMsg('File must be smaller than 20MB.');
       setFile(null);
       return;
     }
@@ -48,13 +48,22 @@ export default function CustomizationPage() {
       return;
     }
 
+    if (!isPdfFile(file)) {
+      setErrorMsg('Only PDF files are allowed.');
+      return;
+    }
+
+    if (file.size >= MAX_FILE_SIZE) {
+      setErrorMsg('File must be smaller than 20MB.');
+      return;
+    }
+
     setStatus('uploading');
     const formData = new FormData();
     formData.append('file', file);
     formData.append('name', name);
     formData.append('email', email);
     formData.append('phone', `${countryCode} ${phone}`);
-    formData.append('instructions', instructions);
 
     try {
       const res = await fetch('/api/upload', {
@@ -70,7 +79,6 @@ export default function CustomizationPage() {
         setName('');
         setEmail('');
         setPhone('');
-        setInstructions('');
       } else {
         setStatus('error');
         setErrorMsg(data.error || 'Upload failed. Please try again.');
@@ -91,7 +99,7 @@ export default function CustomizationPage() {
         >
           <h1 className={styles.title}>Custom Design Upload</h1>
           <p className={styles.subtitle}>
-            Upload your design specs and custom instructions. We'll bring your vision to life.
+            Review our reference template, then upload your design file in a similar format. We&apos;ll bring your vision to life.
           </p>
 
           <div className={styles.card}>
@@ -170,11 +178,34 @@ export default function CustomizationPage() {
                 </div>
 
                 <div className={styles.inputGroup}>
-                  <label>Design File (PDF or DOCX, max 20MB)</label>
+                  <label>Reference Template</label>
+                  <p className={styles.referenceHint}>
+                    Use this PDF as a guide for layout and details. Upload your own file below in the same format.
+                  </p>
+                  <div className={`${styles.dropzone} ${styles.referenceDropzone}`}>
+                    <div className={styles.referenceContent}>
+                      <FileText size={32} />
+                      <span className={styles.referenceFileName}>{REFERENCE_PDF_NAME}</span>
+                      <div className={styles.referenceActions}>
+                        <a
+                          href={REFERENCE_PDF}
+                          download={REFERENCE_PDF_NAME}
+                          className={styles.referenceBtn}
+                        >
+                          <Download size={16} />
+                          Download PDF
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.inputGroup}>
+                  <label>Your Design File (PDF only, max 20MB)</label>
                   <div className={`${styles.dropzone} ${file ? styles.hasFile : ''}`}>
                     <input 
                       type="file" 
-                      accept=".pdf,.docx"
+                      accept=".pdf,application/pdf"
                       onChange={handleFileChange}
                       className={styles.fileInput}
                       id="file-upload"
@@ -194,18 +225,6 @@ export default function CustomizationPage() {
                       )}
                     </label>
                   </div>
-                </div>
-
-                <div className={styles.inputGroup}>
-                  <label htmlFor="instructions">Custom Instructions / Specifications</label>
-                  <textarea 
-                    id="instructions"
-                    rows={4}
-                    placeholder="Describe your requirements in detail..."
-                    value={instructions}
-                    onChange={(e) => setInstructions(e.target.value)}
-                    disabled={status === 'uploading'}
-                  />
                 </div>
 
                 <AnimatePresence>

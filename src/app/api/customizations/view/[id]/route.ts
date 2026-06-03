@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getFileFromMongoDB } from '@/lib/mongoFiles';
+import { getFileFromSupabase } from '@/lib/supabaseFiles';
 
 export async function GET(
   req: Request,
@@ -7,7 +7,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const file = await getFileFromMongoDB(id);
+    // id in this context would be the filePath in Supabase Storage
+    const file = await getFileFromSupabase(id);
 
     if (!file || !file.data) {
       return new NextResponse('File not found', { status: 404 });
@@ -15,11 +16,11 @@ export async function GET(
 
     // Set the appropriate content type
     const headers = new Headers();
-    headers.set('Content-Type', file.mimeType || 'application/pdf');
+    headers.set('Content-Type', file.mimeType || 'application/octet-stream');
     headers.set('Content-Disposition', `inline; filename="${file.fileName}"`);
 
-    // file.data is stored as a Buffer in MongoDB
-    return new NextResponse(file.data.buffer, {
+    // Supabase download returns a Blob/File
+    return new NextResponse(file.data, {
       status: 200,
       headers,
     });

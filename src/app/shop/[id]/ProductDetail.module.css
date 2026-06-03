@@ -169,6 +169,17 @@
   align-items: center;
   gap: 5px;
   text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.sizeGuide:hover:not(:disabled) {
+  color: var(--color-fg);
+}
+
+.sizeGuide:disabled {
+  opacity: 0.5;
+  cursor: default;
+  text-decoration: none;
 }
 
 .sizeGrid {

@@ -9,7 +9,7 @@ import { useAuth } from './AuthProvider';
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { cartItems } = useCart();
+  const { cartCount } = useCart();
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -64,8 +64,8 @@ export default function Navbar() {
           </Link>
           <Link href="/cart" className={styles.iconBtn} aria-label="Cart">
             <ShoppingBag size={22} color="#f5f5f0" />
-            {cartItems.length > 0 && (
-              <span className={styles.cartCount}>{cartItems.length}</span>
+            {cartCount > 0 && (
+              <span className={styles.cartCount}>{cartCount}</span>
             )}
           </Link>
         </div>

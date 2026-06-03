@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { fetchAllProducts } from '@/lib/catalog';
 
 export async function GET() {
   try {
-    const filePath = path.join(process.cwd(), 'src', 'data', 'products.json');
-    if (!fs.existsSync(filePath)) {
-      return NextResponse.json([]);
-    }
-    const data = fs.readFileSync(filePath, 'utf-8');
-    return NextResponse.json(JSON.parse(data));
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const products = await fetchAllProducts();
+    return NextResponse.json(products);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to load products';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
