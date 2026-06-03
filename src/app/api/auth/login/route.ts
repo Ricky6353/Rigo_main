@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseNotConfiguredResponse } from '@/lib/supabaseErrors';
 import { verifyPassword } from '@/lib/auth';
 
 type LoginBody = {
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
 
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
-      return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 });
+      return supabaseNotConfiguredResponse();
     }
 
     const { data: user } = await supabaseAdmin

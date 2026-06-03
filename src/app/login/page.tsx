@@ -35,7 +35,10 @@ export default function LoginPage() {
       const checkData = await checkRes.json().catch(() => ({}));
 
       if (!checkRes.ok) {
-        throw new Error(checkData.error || 'Invalid email or password');
+        const msg = checkData.hint
+          ? `${checkData.error || 'Login failed'}. ${checkData.hint}`
+          : checkData.error || 'Invalid email or password';
+        throw new Error(msg);
       }
 
       const result = await signIn('credentials', {

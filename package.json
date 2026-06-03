@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "verify:supabase": "node scripts/verify-supabase-env.js",
     "start": "next start",
     "lint": "eslint"
   },
