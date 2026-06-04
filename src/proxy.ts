@@ -30,8 +30,9 @@ export default withAuth(
 
       if (!isAdmin) {
         const url = request.nextUrl.clone();
-        url.pathname = '/404';
-        return NextResponse.rewrite(url);
+        url.pathname = '/login';
+        url.searchParams.set('callbackUrl', pathname);
+        return NextResponse.redirect(url);
       }
     }
     
@@ -47,9 +48,10 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    '/shop/:path*', 
-    '/admin/:path*', 
-    // Match all api/admin except uploads which cause multipart stream issues with middleware
-    '/api/admin/((?!gallery|products).*)'
+    '/shop/:path*',
+    '/admin',
+    '/admin/:path*',
+    // Match api/admin except multipart upload routes
+    '/api/admin/((?!gallery|products).*)',
   ],
 };

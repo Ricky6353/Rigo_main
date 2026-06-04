@@ -1,16 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { notFound } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Product } from '@/lib/catalog';
 import styles from './Admin.module.css';
 import { X, Download, BarChart3, Trash2 } from 'lucide-react';
 
-import { isAdminEmail, normalizeEmail } from '@/lib/adminConfig';
+import { isAdminEmail, normalizeEmail, resolveRole } from '@/lib/adminConfig';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
 
 export default function AdminPortal() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   const [productsList, setProductsList] = useState<Product[]>([]);
@@ -45,24 +48,35 @@ export default function AdminPortal() {
   const [newCatName, setNewCatName] = useState('');
   const [isAddingCat, setIsAddingCat] = useState(false);
 
-  // Sync data on mount
+  // Admin access: NextAuth session (works on Vercel) with localStorage fallback
   useEffect(() => {
-    const storedUser = localStorage.getItem('embroyit_user');
-    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-    const isAdminUser = parsedUser?.email && isAdminEmail(normalizeEmail(parsedUser.email));
-    
-    if (isAdminUser) {
+    if (status === 'loading') return;
+
+    const sessionEmail = session?.user?.email ? normalizeEmail(session.user.email) : '';
+    // @ts-expect-error role on session user
+    const sessionRole = session?.user?.role as string | undefined;
+    const fromSession = sessionEmail && resolveRole(sessionEmail, sessionRole) === 'admin';
+
+    let fromStorage = false;
+    try {
+      const storedUser = localStorage.getItem('embroyit_user');
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      fromStorage = Boolean(parsedUser?.email && isAdminEmail(normalizeEmail(parsedUser.email)));
+    } catch {
+      fromStorage = false;
+    }
+
+    if (fromSession || fromStorage) {
       setIsAuthenticated(true);
-      // Ensure session flag is set if we have a valid admin email in localStorage
       sessionStorage.setItem('adminAuth', 'true');
+      fetchProducts();
+      fetchCategories();
     } else {
       setIsAuthenticated(false);
       sessionStorage.removeItem('adminAuth');
+      router.replace('/login?callbackUrl=/admin');
     }
-
-    fetchProducts();
-    fetchCategories();
-  }, []);
+  }, [session, status, router]);
 
   const fetchProducts = async () => {
     try {
@@ -490,12 +504,16 @@ export default function AdminPortal() {
     }
   };
 
-  if (isAuthenticated === null) {
-    return null; // Or a loading spinner
+  if (isAuthenticated === null || status === 'loading') {
+    return (
+      <main className={styles.main}>
+        <p style={{ textAlign: 'center', padding: '4rem' }}>Loading Command Center…</p>
+      </main>
+    );
   }
 
   if (!isAuthenticated) {
-    notFound();
+    return null;
   }
 
   return (

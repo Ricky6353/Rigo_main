@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
-import { notFound } from "next/navigation";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/authOptions";
 import { resolveRole } from "@/lib/adminConfig";
 import { buildPageMetadata } from "@/lib/seo";
 
@@ -21,7 +21,7 @@ export default async function AdminLayout({
   const role = session?.user?.role as string | undefined;
 
   if (!session?.user?.email || resolveRole(session.user.email, role) !== 'admin') {
-    notFound();
+    redirect('/login?callbackUrl=/admin');
   }
 
   return <>{children}</>;

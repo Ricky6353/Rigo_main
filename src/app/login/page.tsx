@@ -17,6 +17,11 @@ export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
 
+  const getCallbackUrl = () => {
+    if (typeof window === 'undefined') return '/';
+    return new URLSearchParams(window.location.search).get('callbackUrl') || '/';
+  };
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,12 +63,13 @@ export default function LoginPage() {
 
       login(email, checkData.user?.name || email.split('@')[0]);
 
+      const callbackUrl = getCallbackUrl();
       if (isAdminEmail(email)) {
         sessionStorage.setItem('adminAuth', 'true');
-        router.push('/admin');
+        router.push(callbackUrl.startsWith('/admin') ? callbackUrl : '/admin');
       } else {
         sessionStorage.removeItem('adminAuth');
-        router.push('/');
+        router.push(callbackUrl === '/admin' ? '/' : callbackUrl);
       }
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Login failed');
