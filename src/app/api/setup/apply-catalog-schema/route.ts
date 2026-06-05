@@ -12,7 +12,6 @@ import { resolveRole } from '@/lib/adminConfig';
 export async function POST() {
   try {
     const session = await getServerSession(authOptions);
-    // @ts-expect-error role from session
     if (!session?.user?.email || resolveRole(session.user.email, session.user.role) !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

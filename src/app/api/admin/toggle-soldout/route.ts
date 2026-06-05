@@ -7,7 +7,6 @@ import { updateProductSoldOut } from '@/lib/catalog';
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    // @ts-expect-error role from session
     if (!session?.user?.email || resolveRole(session.user.email, session.user.role) !== 'admin') {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }

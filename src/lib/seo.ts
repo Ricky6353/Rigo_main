@@ -5,7 +5,7 @@ export const SITE_TAGLINE = 'Premium Embroidered Streetwear UK';
 
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
-  process.env.NEXTAUTH_URL?.replace(/\/$/, '') ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
   'https://embroyit.com';
 
 export const SEO_KEYWORDS = [

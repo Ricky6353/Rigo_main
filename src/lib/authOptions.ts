@@ -4,6 +4,9 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 import { verifyPassword } from '@/lib/auth';
 import { persistAndSyncUser } from '@/lib/userPipeline';
 import { normalizeEmail, resolveRole, isAdminEmail } from '@/lib/adminConfig';
+import { ensureNextAuthEnv, resolveAuthSecret } from '@/lib/authEnv';
+
+ensureNextAuthEnv();
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -69,6 +72,10 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as { role?: string }).role || 'user';
         if (user.email) token.email = normalizeEmail(user.email);
       }
+      if (token.email) {
+        token.email = normalizeEmail(token.email as string);
+        token.role = resolveRole(token.email, token.role as string | undefined);
+      }
       return token;
     },
     async session({ session, token }) {
@@ -77,9 +84,7 @@ export const authOptions: NextAuthOptions = {
           (session.user.email || (token.email as string) || '') as string
         );
         session.user.email = email || session.user.email;
-        // @ts-expect-error extended session user
         session.user.role = resolveRole(email, token.role as string);
-        // @ts-expect-error extended session user
         session.user.id = token.id as string;
       }
       return session;
@@ -148,6 +153,6 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: resolveAuthSecret(),
   debug: process.env.NODE_ENV === 'development',
 };
