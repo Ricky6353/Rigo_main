@@ -16,10 +16,29 @@ export default function ShopClient({
   dynamicCategories: { id: string; name: string }[] 
 }) {
   const [filter, setFilter] = useState('all');
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [categories, setCategories] = useState(dynamicCategories);
   const searchParams = useSearchParams();
 
+  // Always refresh from API so Command Center edits appear on the collections grid
+  useEffect(() => {
+    fetch('/api/products', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data: Product[]) => {
+        if (Array.isArray(data)) setProducts(data);
+      })
+      .catch((err) => console.error('Error refreshing shop products:', err));
+
+    fetch('/api/categories', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data: { id: string; name: string }[]) => {
+        if (Array.isArray(data)) setCategories(data);
+      })
+      .catch((err) => console.error('Error refreshing categories:', err));
+  }, []);
+
   // Combine 'all' with dynamic categories
-  const categoriesList = ['all', ...dynamicCategories.map(c => c.id)];
+  const categoriesList = ['all', ...categories.map((c) => c.id)];
 
   useEffect(() => {
     const cat = searchParams.get('category');
@@ -29,8 +48,8 @@ export default function ShopClient({
   }, [searchParams, categoriesList]);
 
   const filteredProducts = filter === 'all' 
-    ? initialProducts 
-    : initialProducts.filter(p => p.category === filter);
+    ? products 
+    : products.filter((p) => p.category === filter);
 
   return (
     <main className={styles.main}>
@@ -41,7 +60,7 @@ export default function ShopClient({
             {categoriesList.map((catId) => {
               const catName = catId === 'all' 
                 ? 'all' 
-                : dynamicCategories.find(c => c.id === catId)?.name || catId;
+                : categories.find((c) => c.id === catId)?.name || catId;
               
               return (
                 <button

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { resolveRole } from '@/lib/adminConfig';
 import { updateProductSoldOut } from '@/lib/catalog';
+import { revalidateCatalogPages } from '@/lib/revalidateCatalog';
 
 export async function POST(req: Request) {
   try {
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
       ? `Size ${size} marked as ${soldOut ? 'sold out' : 'in stock'}`
       : `Product marked as ${soldOut ? 'sold out' : 'in stock'}`;
 
+    revalidateCatalogPages();
     return NextResponse.json({ success: true, product, message });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Toggle failed';

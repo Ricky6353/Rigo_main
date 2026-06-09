@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { resolveRole } from '@/lib/adminConfig';
-import { deleteProduct, uploadProductMedia, upsertProduct } from '@/lib/catalog';
+import { deleteProduct, fetchProductById, uploadProductMedia, upsertProduct } from '@/lib/catalog';
 import type { Product } from '@/lib/catalog';
+import { revalidateCatalogPages } from '@/lib/revalidateCatalog';
 
 export async function POST(req: Request) {
   try {
@@ -14,7 +15,9 @@ export async function POST(req: Request) {
 
     const formData = await req.formData();
 
-    const id = (formData.get('id') as string) || `p_${Date.now()}`;
+    const editId = (formData.get('id') as string) || '';
+    const id = editId || `p_${Date.now()}`;
+    const existing = editId ? await fetchProductById(editId) : null;
     const name = formData.get('name') as string;
     const category = formData.get('category') as string;
     const price = parseFloat(formData.get('price') as string);
@@ -57,6 +60,8 @@ export async function POST(req: Request) {
 
     if (imageUrls.length > 0) {
       primaryImage = imageUrls[0];
+    } else if (!primaryImage && existing?.image) {
+      primaryImage = existing.image;
     }
 
     if (!primaryImage) {
@@ -69,10 +74,12 @@ export async function POST(req: Request) {
       category,
       price,
       description,
-      sizes,
-      details,
+      sizes: sizes.length > 0 ? sizes : existing?.sizes,
+      details: details.length > 0 ? details : existing?.details || [],
       image: primaryImage,
-      images: imageUrls.length > 0 ? imageUrls : undefined,
+      images: imageUrls.length > 0 ? imageUrls : existing?.images,
+      soldOut: existing?.soldOut,
+      soldOutSizes: existing?.soldOutSizes,
     };
 
     const { product: saved, error } = await upsertProduct(product);
@@ -80,6 +87,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error || 'Failed to save product' }, { status: 500 });
     }
 
+    revalidateCatalogPages();
     return NextResponse.json({ success: true, product: saved });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Save failed';
@@ -107,6 +115,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: error || 'Product not found' }, { status: 404 });
     }
 
+    revalidateCatalogPages();
     return NextResponse.json({ success: true, message: 'Product deleted' });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Delete failed';

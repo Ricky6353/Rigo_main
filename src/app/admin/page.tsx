@@ -50,7 +50,7 @@ export default function AdminPortal() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products');
+      const res = await fetch('/api/products', { cache: 'no-store' });
       const data = await res.json();
       if (Array.isArray(data)) setProductsList(data);
     } catch (err) {

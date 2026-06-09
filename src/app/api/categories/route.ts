@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { fetchAllCategories, upsertCategory, deleteCategory } from '@/lib/catalog';
+import { CATALOG_CACHE_HEADERS } from '@/lib/apiCache';
+import { revalidateCatalogPages } from '@/lib/revalidateCatalog';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   try {
     const categories = await fetchAllCategories();
-    return NextResponse.json(categories);
+    return NextResponse.json(categories, { headers: CATALOG_CACHE_HEADERS });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to load categories';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -28,6 +33,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error || 'Failed to create category' }, { status: 500 });
     }
 
+    revalidateCatalogPages();
     return NextResponse.json({ success: true, category });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to create category';
@@ -47,6 +53,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: error || 'Failed to delete category' }, { status: 500 });
     }
 
+    revalidateCatalogPages();
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to delete category';

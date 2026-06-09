@@ -4,6 +4,9 @@ import JsonLd from '@/components/JsonLd';
 import { fetchAllCategories, fetchAllProducts } from '@/lib/catalog';
 import { SITE_URL } from '@/lib/seo';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function ShopPage() {
   const [products, categories] = await Promise.all([fetchAllProducts(), fetchAllCategories()]);
 

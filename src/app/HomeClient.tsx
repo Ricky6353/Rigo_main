@@ -16,7 +16,7 @@ export default function HomeClient() {
   const [latestDrops, setLatestDrops] = useState<Product[]>([]);
 
   useEffect(() => {
-    fetch('/api/products')
+    fetch('/api/products', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data: Product[]) => {
         if (Array.isArray(data)) setLatestDrops(data.slice(0, 2));
