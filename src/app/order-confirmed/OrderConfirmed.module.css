@@ -1,0 +1,69 @@
+.main {
+  min-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background-color: var(--color-bg);
+  padding: 120px 24px 60px;
+}
+
+.card {
+  max-width: 560px;
+  padding: 48px 32px;
+}
+
+.icon {
+  color: var(--color-accent);
+  margin-bottom: 28px;
+  display: block;
+  width: 100%;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 600;
+  margin-bottom: 24px;
+  letter-spacing: -0.02em;
+}
+
+.message {
+  color: var(--color-fg-muted);
+  font-size: 1.05rem;
+  line-height: 1.75;
+  margin-bottom: 40px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  border: none;
+  font-size: 0.85rem;
+}
+
+.primaryBtn {
+  background: var(--color-fg);
+  color: var(--color-bg);
+}
+
+.secondaryBtn {
+  background: transparent;
+  color: var(--color-fg);
+  border: 1px solid var(--border-color);
+}

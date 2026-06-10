@@ -2,16 +2,15 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { CreditCard, CheckCircle, ArrowRight, CornerUpLeft, ShieldCheck, Lock } from 'lucide-react';
+import { CreditCard, ShieldCheck, Lock } from 'lucide-react';
 import { useCart } from '@/components/CartProvider';
 import styles from './Checkout.module.css';
 
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { cartItems, cartTotal, clearCart } = useCart();
-  const [status, setStatus] = useState<'idle' | 'processing' | 'success'>('idle');
+  const { cartItems, cartTotal } = useCart();
+  const [status, setStatus] = useState<'idle' | 'processing'>('idle');
   const [shippingInfo, setShippingInfo] = useState({
     firstName: '',
     lastName: '',
@@ -23,37 +22,12 @@ function CheckoutContent() {
 
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'paypal'>('card');
 
-  // Handle successful payment return from Stripe
   useEffect(() => {
-    const success = searchParams.get('success');
-    const sessionId = searchParams.get('session_id');
-
-    if (success === 'true' && sessionId) {
-      const captureOrder = async () => {
-        setStatus('processing');
-        try {
-          const res = await fetch('/api/stripe-capture', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId }),
-          });
-          
-          if (res.ok) {
-            setStatus('success');
-            clearCart();
-          } else {
-            console.error('Failed to capture order details');
-            setStatus('idle');
-          }
-        } catch (err) {
-          console.error('Order capture error:', err);
-          setStatus('idle');
-        }
-      };
-
-      captureOrder();
+    if (searchParams.get('canceled') === 'true') {
+      alert('Payment was cancelled. Your cart is still saved.');
+      router.replace('/checkout');
     }
-  }, [searchParams, clearCart]);
+  }, [searchParams, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,25 +57,6 @@ function CheckoutContent() {
       setStatus('idle');
     }
   };
-
-  if (status === 'success') {
-    return (
-      <main className={styles.successWrapper}>
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className={styles.successCard}
-        >
-          <CheckCircle size={80} className={styles.successIcon} />
-          <h1>Order Confirmed</h1>
-          <p>Thank you for shopping with Embroyit. Your order is being processed.</p>
-          <button onClick={() => router.push('/')} className={styles.homeBtn}>
-            Return Home <ArrowRight size={20} />
-          </button>
-        </motion.div>
-      </main>
-    );
-  }
 
   return (
     <main className={styles.main}>
@@ -207,7 +162,7 @@ function CheckoutContent() {
                 <span>£{cartTotal}</span>
               </div>
               <p className={styles.notice}>
-                You will receive an order confirmation email shortly after payment.
+                You will receive an order confirmation email within 48 hours of placing your order.
               </p>
             </div>
           </aside>

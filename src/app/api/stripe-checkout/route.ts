@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         city: shipping?.city || '',
         postalCode: shipping?.postalCode || '',
       },
-      success_url: `${origin}/checkout?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/order-confirmed?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout?canceled=true`,
     });
 
