@@ -11,6 +11,7 @@ import ProductReviews from '@/components/ProductReviews';
 import SizeChartModal from '@/components/SizeChartModal';
 import { getSizeChartForCategory } from '@/lib/sizeCharts';
 import styles from './ProductDetail.module.css';
+import soldOutStyles from '@/styles/SoldOut.module.css';
 
 export default function ProductDetailClient({ product: initialProduct }: { product: Product }) {
   const router = useRouter();
@@ -50,7 +51,8 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
     setTimeout(() => {
       addToCart({
         id: `${product.id}-${selectedSize || 'OS'}`,
-        name: `${product.name} ${selectedSize ? `(${selectedSize})` : ''}`,
+        productId: product.id,
+        name: product.name,
         price: product.price,
         quantity: 1,
         image: product.image,
@@ -138,20 +140,7 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
                 (product.sizes &&
                   product.sizes.length > 0 &&
                   product.sizes.every((s) => product.soldOutSizes?.includes(s)))) && (
-                <div
-                  style={{
-                    marginTop: '10px',
-                    padding: '10px',
-                    background: '#ffebee',
-                    border: '1px solid #ff6b6b',
-                    borderRadius: '8px',
-                    color: '#d32f2f',
-                    fontWeight: 'bold',
-                    textAlign: 'center',
-                  }}
-                >
-                  🔴 SOLD OUT
-                </div>
+                <div className={soldOutStyles.banner}>Sold Out</div>
               )}
             </div>
 
@@ -181,33 +170,15 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
                     return (
                       <button
                         key={size}
-                        className={`${styles.sizeBtn} ${selectedSize === size ? styles.selectedSize : ''}`}
+                        type="button"
+                        className={`${styles.sizeBtn} ${selectedSize === size ? styles.selectedSize : ''} ${disabled ? soldOutStyles.sizeBtnSoldOut : ''}`}
                         onClick={() => setSelectedSize(size)}
                         disabled={disabled}
-                        style={{
-                          opacity: disabled ? 0.5 : 1,
-                          cursor: disabled ? 'not-allowed' : 'pointer',
-                          textDecoration: isSizeSoldOut ? 'line-through' : 'none',
-                          position: 'relative',
-                        }}
+                        style={{ position: 'relative' }}
                       >
                         {size}
                         {isSizeSoldOut && !product.soldOut && (
-                          <span
-                            style={{
-                              position: 'absolute',
-                              top: '-10px',
-                              right: '-5px',
-                              fontSize: '10px',
-                              background: '#ff6b6b',
-                              color: 'white',
-                              padding: '2px 4px',
-                              borderRadius: '4px',
-                              textDecoration: 'none',
-                            }}
-                          >
-                            OUT
-                          </span>
+                          <span className={soldOutStyles.sizeOutTag}>Out</span>
                         )}
                       </button>
                     );
@@ -218,13 +189,10 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
 
             <div className={styles.actions}>
               <button
-                className={styles.addToCartBtn}
+                type="button"
+                className={`${styles.addToCartBtn} ${product.soldOut ? soldOutStyles.addToCartSoldOut : ''}`}
                 onClick={handleAddToCart}
                 disabled={adding || product.soldOut}
-                style={{
-                  opacity: product.soldOut ? 0.5 : 1,
-                  cursor: product.soldOut ? 'not-allowed' : 'pointer',
-                }}
               >
                 {product.soldOut ? (
                   <>

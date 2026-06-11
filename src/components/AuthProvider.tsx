@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useSession, signOut } from 'next-auth/react';
 
 import { isAdminEmail, normalizeEmail } from '@/lib/adminConfig';
+import { clearPersistedCart } from '@/lib/cartStorage';
 
 type User = {
   id: string;
@@ -66,6 +67,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const login = (email: string, name: string) => {
+    clearPersistedCart();
     const mockUser: User = {
       id: Math.random().toString(36).substr(2, 9),
       name,
@@ -77,6 +79,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    clearPersistedCart();
     setUser(null);
     sessionStorage.removeItem('adminAuth');
     signOut({ redirect: false });

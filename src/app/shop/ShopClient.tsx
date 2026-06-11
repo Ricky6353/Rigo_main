@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Product } from '@/lib/catalog';
 import styles from './Shop.module.css';
+import soldOutStyles from '@/styles/SoldOut.module.css';
 import { useSearchParams } from 'next/navigation';
 
 export default function ShopClient({ 
@@ -93,7 +94,7 @@ export default function ShopClient({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ duration: 0.4 }}
-                      className={styles.productCard}
+                      className={`${styles.productCard} ${isSoldOut ? soldOutStyles.cardDimmed : ''}`}
                     >
                       <Link href={`/shop/${product.id}`}>
                         <div className={styles.imageWrapper}>
@@ -118,19 +119,17 @@ export default function ShopClient({
                               className={styles.image}
                             />
                           )}
-                          <div className={styles.overlay}>
+                          <div className={`${styles.overlay} ${isSoldOut ? soldOutStyles.overlaySoldOut : ''}`}>
                             <span>{isSoldOut ? 'Sold Out' : 'Quick View'}</span>
                           </div>
                           {isSoldOut && (
-                            <div style={{ position: 'absolute', top: '10px', right: '10px', background: '#ff6b6b', color: 'white', padding: '8px 12px', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', zIndex: 10 }}>
-                              SOLD OUT
-                            </div>
+                            <span className={soldOutStyles.badge}>Sold Out</span>
                           )}
                         </div>
                         <div className={styles.info}>
-                          <h2 className={styles.productName}>{product.name}</h2>
+                          <h2 className={`${styles.productName} ${isSoldOut ? soldOutStyles.priceMuted : ''}`}>{product.name}</h2>
                           <p className={styles.productPrice}>£{product.price}</p>
-                          {isSoldOut && <p style={{ color: '#ff6b6b', fontSize: '0.9rem', marginTop: '5px', fontWeight: 'bold' }}>🔴 Not Available</p>}
+                          {isSoldOut && <p className={soldOutStyles.caption}>Unavailable</p>}
                         </div>
                       </Link>
                     </motion.div>
