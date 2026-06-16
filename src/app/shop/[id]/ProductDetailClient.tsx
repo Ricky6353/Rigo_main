@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
@@ -13,10 +13,19 @@ import { getSizeChartForCategory } from '@/lib/sizeCharts';
 import styles from './ProductDetail.module.css';
 import soldOutStyles from '@/styles/SoldOut.module.css';
 
-export default function ProductDetailClient({ product: initialProduct }: { product: Product }) {
+function isVideoUrl(url: string) {
+  return /\.(mp4|webm|mov|quicktime)(\?|$)/i.test(url);
+}
+
+function buildMediaList(product: Product) {
+  const combined = [product.image, ...(product.images || [])].filter(Boolean);
+  return [...new Set(combined)];
+}
+
+export default function ProductDetailClient({ product }: { product: Product }) {
   const router = useRouter();
   const { addToCart } = useCart();
-  const [product, setProduct] = useState(initialProduct);
+  const [mediaIndex, setMediaIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -24,7 +33,20 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
   const videoRef = useRef<HTMLVideoElement>(null);
   const thumbnailTrackRef = useRef<HTMLDivElement>(null);
 
+  const allMedia = useMemo(() => buildMediaList(product), [product]);
+  const currentMedia = allMedia[mediaIndex] || product.image;
+  const hasMultipleMedia = allMedia.length > 1;
   const sizeChart = getSizeChartForCategory(product.category);
+
+  useEffect(() => {
+    setMediaIndex(0);
+  }, [product.id]);
+
+  useEffect(() => {
+    if (mediaIndex >= allMedia.length) {
+      setMediaIndex(0);
+    }
+  }, [allMedia.length, mediaIndex]);
 
   const togglePlay = () => {
     if (videoRef.current) {
@@ -37,10 +59,21 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
     }
   };
 
+  const goToMedia = (index: number) => {
+    if (!allMedia.length) return;
+    const next = ((index % allMedia.length) + allMedia.length) % allMedia.length;
+    setMediaIndex(next);
+    setIsPlaying(true);
+  };
+
+  const shiftMedia = (direction: 'prev' | 'next') => {
+    goToMedia(direction === 'prev' ? mediaIndex - 1 : mediaIndex + 1);
+  };
+
   const scrollThumbnails = (direction: 'left' | 'right') => {
     const track = thumbnailTrackRef.current;
     if (!track) return;
-    const amount = Math.max(140, Math.floor(track.clientWidth * 0.6));
+    const amount = 94;
     track.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
   };
 
@@ -63,7 +96,7 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
         name: product.name,
         price: product.price,
         quantity: 1,
-        image: product.image,
+        image: currentMedia,
         size: selectedSize || 'OS',
       });
       setAdding(false);
@@ -84,11 +117,12 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
             className={styles.imageSection}
           >
             <div className={styles.mainImageWrapper}>
-              {product.image.toLowerCase().match(/\.(mp4|webm|mov|quicktime)$/) ? (
-                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+              {isVideoUrl(currentMedia) ? (
+                <div className={styles.mainVideoWrap}>
                   <video
+                    key={currentMedia}
                     ref={videoRef}
-                    src={product.image}
+                    src={currentMedia}
                     className={styles.mainImage}
                     autoPlay
                     loop
@@ -97,49 +131,75 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
                     disablePictureInPicture
                     disableRemotePlayback
                     controlsList="nodownload noplaybackrate nopictureinpicture"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     onClick={togglePlay}
                     onContextMenu={(e) => e.preventDefault()}
                   />
-                  <button onClick={togglePlay} className={styles.playPauseBtn}>
+                  <button type="button" onClick={togglePlay} className={styles.playPauseBtn}>
                     {isPlaying ? <Pause size={24} /> : <Play size={24} fill="currentColor" />}
                   </button>
                 </div>
               ) : (
                 <Image
-                  src={product.image}
+                  key={currentMedia}
+                  src={currentMedia}
                   alt={product.name}
                   fill
                   priority
                   className={styles.mainImage}
                 />
               )}
+
+              {hasMultipleMedia && (
+                <>
+                  <button
+                    type="button"
+                    className={`${styles.mainNavBtn} ${styles.mainNavBtnLeft}`}
+                    onClick={() => shiftMedia('prev')}
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.mainNavBtn} ${styles.mainNavBtnRight}`}
+                    onClick={() => shiftMedia('next')}
+                    aria-label="Next image"
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                  <div className={styles.mediaCounter}>
+                    {mediaIndex + 1} / {allMedia.length}
+                  </div>
+                </>
+              )}
             </div>
 
-            {product.images && product.images.length > 0 && (
+            {hasMultipleMedia && (
               <div className={styles.thumbnailScroller}>
                 <button
                   type="button"
                   className={styles.thumbNavBtn}
                   onClick={() => scrollThumbnails('left')}
-                  aria-label="Scroll media left"
+                  aria-label="Scroll thumbnails left"
                 >
                   <ChevronLeft size={16} />
                 </button>
 
                 <div className={styles.thumbnailTrack} ref={thumbnailTrackRef}>
-                  {product.images.map((img, idx) => (
-                    <div
-                      key={idx}
-                      className={`${styles.thumbnail} ${product.image === img ? styles.activeThumb : ''}`}
-                      onClick={() => setProduct({ ...product, image: img })}
+                  {allMedia.map((img, idx) => (
+                    <button
+                      key={`${img}-${idx}`}
+                      type="button"
+                      className={`${styles.thumbnail} ${mediaIndex === idx ? styles.activeThumb : ''}`}
+                      onClick={() => goToMedia(idx)}
+                      aria-label={`View media ${idx + 1}`}
                     >
-                      {img.toLowerCase().match(/\.(mp4|webm|mov|quicktime)$/) ? (
-                        <video src={img} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      {isVideoUrl(img) ? (
+                        <video src={img} muted playsInline />
                       ) : (
-                        <Image src={img} alt={`${product.name} ${idx}`} fill style={{ objectFit: 'cover' }} />
+                        <Image src={img} alt={`${product.name} ${idx + 1}`} fill style={{ objectFit: 'cover' }} />
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
 
@@ -147,7 +207,7 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
                   type="button"
                   className={styles.thumbNavBtn}
                   onClick={() => scrollThumbnails('right')}
-                  aria-label="Scroll media right"
+                  aria-label="Scroll thumbnails right"
                 >
                   <ChevronRight size={16} />
                 </button>
