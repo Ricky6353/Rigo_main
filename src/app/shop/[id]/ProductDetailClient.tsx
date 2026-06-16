@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { ShoppingBag, ChevronLeft, Check, Info, Play, Pause } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, ChevronRight, Check, Info, Play, Pause } from 'lucide-react';
 import type { Product } from '@/lib/catalog';
 import { useCart } from '@/components/CartProvider';
 import ProductReviews from '@/components/ProductReviews';
@@ -22,6 +22,7 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
   const [isPlaying, setIsPlaying] = useState(true);
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const thumbnailTrackRef = useRef<HTMLDivElement>(null);
 
   const sizeChart = getSizeChartForCategory(product.category);
 
@@ -34,6 +35,13 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
       }
       setIsPlaying(!isPlaying);
     }
+  };
+
+  const scrollThumbnails = (direction: 'left' | 'right') => {
+    const track = thumbnailTrackRef.current;
+    if (!track) return;
+    const amount = Math.max(140, Math.floor(track.clientWidth * 0.6));
+    track.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
   };
 
   const handleAddToCart = () => {
@@ -109,20 +117,40 @@ export default function ProductDetailClient({ product: initialProduct }: { produ
             </div>
 
             {product.images && product.images.length > 0 && (
-              <div className={styles.thumbnailGrid}>
-                {product.images.map((img, idx) => (
-                  <div
-                    key={idx}
-                    className={`${styles.thumbnail} ${product.image === img ? styles.activeThumb : ''}`}
-                    onClick={() => setProduct({ ...product, image: img })}
-                  >
-                    {img.toLowerCase().match(/\.(mp4|webm|mov|quicktime)$/) ? (
-                      <video src={img} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <Image src={img} alt={`${product.name} ${idx}`} fill style={{ objectFit: 'cover' }} />
-                    )}
-                  </div>
-                ))}
+              <div className={styles.thumbnailScroller}>
+                <button
+                  type="button"
+                  className={styles.thumbNavBtn}
+                  onClick={() => scrollThumbnails('left')}
+                  aria-label="Scroll media left"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                <div className={styles.thumbnailTrack} ref={thumbnailTrackRef}>
+                  {product.images.map((img, idx) => (
+                    <div
+                      key={idx}
+                      className={`${styles.thumbnail} ${product.image === img ? styles.activeThumb : ''}`}
+                      onClick={() => setProduct({ ...product, image: img })}
+                    >
+                      {img.toLowerCase().match(/\.(mp4|webm|mov|quicktime)$/) ? (
+                        <video src={img} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <Image src={img} alt={`${product.name} ${idx}`} fill style={{ objectFit: 'cover' }} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  className={styles.thumbNavBtn}
+                  onClick={() => scrollThumbnails('right')}
+                  aria-label="Scroll media right"
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
             )}
           </motion.div>

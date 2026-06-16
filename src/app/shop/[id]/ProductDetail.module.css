@@ -52,11 +52,38 @@
   object-fit: cover;
 }
 
-.thumbnailGrid {
+.thumbnailScroller {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 10px;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
   margin-top: 15px;
+}
+
+.thumbNavBtn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background: var(--color-bg-alt);
+  color: var(--color-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.thumbNavBtn:hover {
+  border-color: var(--color-fg);
+}
+
+.thumbnailTrack {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
 }
 
 .thumbnail {
@@ -68,6 +95,7 @@
   overflow: hidden;
   border: 2px solid transparent;
   transition: border-color 0.3s ease;
+  min-width: 84px;
 }
 
 .activeThumb {
