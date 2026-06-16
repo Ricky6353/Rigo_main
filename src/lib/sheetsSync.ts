@@ -26,7 +26,21 @@ const ORDERS_HEADER = [
   'customizationInstructions',
   'supabaseStoragePath',
 ];
-const CUSTOMIZATIONS_HEADER = ['Name', 'Email', 'Phone', 'File Name', 'Date', 'Link', 'Instructions', 'Supabase Path'];
+const CUSTOMIZATIONS_HEADER = [
+  'Request ID',
+  'Name',
+  'Email',
+  'Phone',
+  'Category ID',
+  'Category Name',
+  'Design Side',
+  'Placement',
+  'File Name',
+  'Date',
+  'Link',
+  'Instructions',
+  'Supabase Path',
+];
 
 function getSpreadsheetId() {
   return process.env.GOOGLE_ORDERS_SPREADSHEET_ID || process.env.GOOGLE_SPREADSHEET_ID || '';
@@ -173,9 +187,14 @@ export async function syncOrderRecordToSheets(order: {
 }
 
 export async function syncCustomizationRecordToSheets(record: {
+  requestId?: string;
   name: string;
   email: string;
   phone: string;
+  category?: string;
+  categoryName?: string;
+  designSide?: string;
+  placement?: string;
   fileName: string;
   uploadedAt: string;
   viewLink: string;
@@ -191,13 +210,18 @@ export async function syncCustomizationRecordToSheets(record: {
   try {
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${CUSTOMIZATIONS_SHEET_NAME}!A:H`,
+      range: `${CUSTOMIZATIONS_SHEET_NAME}!A:M`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [[
+          record.requestId || '',
           record.name,
           record.email,
           `'${record.phone}`,
+          record.category || '',
+          record.categoryName || '',
+          record.designSide || '',
+          record.placement || '',
           record.fileName,
           record.uploadedAt,
           record.viewLink,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Download } from 'lucide-react';
 import styles from './Customization.module.css';
@@ -8,8 +8,16 @@ import styles from './Customization.module.css';
 const REFERENCE_PDF = '/references/reference.pdf';
 const REFERENCE_PDF_NAME = 'Reference.pdf';
 
+type Category = { id: string; name: string };
+
 export default function CustomizationPage() {
-  const [file, setFile] = useState<File | null>(null);
+  const [frontFile, setFrontFile] = useState<File | null>(null);
+  const [backFile, setBackFile] = useState<File | null>(null);
+  const [frontPlacement, setFrontPlacement] = useState('Front Left Chest');
+  const [backPlacement, setBackPlacement] = useState('Back Center');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [countryCode, setCountryCode] = useState('+44');
@@ -17,50 +25,76 @@ export default function CustomizationPage() {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-  const isPdfFile = (selectedFile: File) =>
-    selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
+  useEffect(() => {
+    fetch('/api/categories', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data: Category[]) => {
+        if (!Array.isArray(data) || data.length === 0) return;
+        setCategories(data);
+        setCategory((prev) => (prev && data.some((c) => c.id === prev) ? prev : data[0].id));
+      })
+      .catch((err) => console.error('Error loading categories:', err));
+  }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+  const isAllowedFile = (selectedFile: File) => {
+    const fileName = selectedFile.name.toLowerCase();
+    const isPdf = selectedFile.type === 'application/pdf' || fileName.endsWith('.pdf');
+    const isJpeg =
+      selectedFile.type === 'image/jpeg' || fileName.endsWith('.jpeg') || fileName.endsWith('.jpg');
+    return isPdf || isJpeg;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    if (!isPdfFile(selectedFile)) {
-      setErrorMsg('Only PDF files are allowed.');
-      setFile(null);
+    if (!isAllowedFile(selectedFile)) {
+      setErrorMsg('Only PDF or JPEG files are allowed.');
+      if (side === 'front') setFrontFile(null);
+      if (side === 'back') setBackFile(null);
       return;
     }
 
     if (selectedFile.size >= MAX_FILE_SIZE) {
       setErrorMsg('File must be smaller than 20MB.');
-      setFile(null);
+      if (side === 'front') setFrontFile(null);
+      if (side === 'back') setBackFile(null);
       return;
     }
 
     setErrorMsg('');
-    setFile(selectedFile);
+    if (side === 'front') setFrontFile(selectedFile);
+    if (side === 'back') setBackFile(selectedFile);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !name || !email || !phone) {
-      setErrorMsg('Please fill in all required fields and select a file.');
+    if (!frontFile || !backFile || !name || !email || !phone || !category) {
+      setErrorMsg('Please fill all required fields and upload both front and back design files.');
       return;
     }
 
-    if (!isPdfFile(file)) {
-      setErrorMsg('Only PDF files are allowed.');
+    if (!isAllowedFile(frontFile) || !isAllowedFile(backFile)) {
+      setErrorMsg('Only PDF or JPEG files are allowed.');
       return;
     }
 
-    if (file.size >= MAX_FILE_SIZE) {
-      setErrorMsg('File must be smaller than 20MB.');
+    if (frontFile.size >= MAX_FILE_SIZE || backFile.size >= MAX_FILE_SIZE) {
+      setErrorMsg('Each file must be smaller than 20MB.');
       return;
     }
 
     setStatus('uploading');
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('frontFile', frontFile);
+    formData.append('backFile', backFile);
+    formData.append('frontPlacement', frontPlacement);
+    formData.append('backPlacement', backPlacement);
+    formData.append('category', category);
+    const categoryName = categories.find((c) => c.id === category)?.name || category;
+    formData.append('categoryName', categoryName);
+    formData.append('description', description);
     formData.append('name', name);
     formData.append('email', email);
     formData.append('phone', `${countryCode} ${phone}`);
@@ -75,7 +109,12 @@ export default function CustomizationPage() {
 
       if (res.ok) {
         setStatus('success');
-        setFile(null);
+        setFrontFile(null);
+        setBackFile(null);
+        setFrontPlacement('Front Left Chest');
+        setBackPlacement('Back Center');
+        setCategory(categories[0]?.id || '');
+        setDescription('');
         setName('');
         setEmail('');
         setPhone('');
@@ -99,7 +138,7 @@ export default function CustomizationPage() {
         >
           <h1 className={styles.title}>Custom Design Upload</h1>
           <p className={styles.subtitle}>
-            Review our reference template, then upload your design file in a similar format. We&apos;ll bring your vision to life.
+            Review our reference template, then upload front and back design files. We&apos;ll bring your vision to life.
           </p>
 
           <div className={styles.card}>
@@ -156,13 +195,13 @@ export default function CustomizationPage() {
                         onChange={(e) => setCountryCode(e.target.value)}
                         disabled={status === 'uploading'}
                       >
-                        <option value="+44">UK (+44)</option>
-                        <option value="+1">USA (+1)</option>
-                        <option value="+91">IND (+91)</option>
-                        <option value="+971">UAE (+971)</option>
-                        <option value="+61">AUS (+61)</option>
-                        <option value="+33">FRA (+33)</option>
-                        <option value="+49">GER (+49)</option>
+                        <option value="+44">+44 UK</option>
+                        <option value="+1">+1 USA</option>
+                        <option value="+91">+91 IND</option>
+                        <option value="+971">+971 UAE</option>
+                        <option value="+61">+61 AUS</option>
+                        <option value="+33">+33 FRA</option>
+                        <option value="+49">+49 GER</option>
                       </select>
                       <input 
                         type="tel" 
@@ -201,30 +240,111 @@ export default function CustomizationPage() {
                 </div>
 
                 <div className={styles.inputGroup}>
-                  <label>Your Design File (PDF only, max 20MB)</label>
-                  <div className={`${styles.dropzone} ${file ? styles.hasFile : ''}`}>
-                    <input 
-                      type="file" 
-                      accept=".pdf,application/pdf"
-                      onChange={handleFileChange}
+                  <label htmlFor="category">Category</label>
+                  <select
+                    id="category"
+                    className={styles.placementSelect}
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    disabled={status === 'uploading' || categories.length === 0}
+                    required
+                  >
+                    {categories.length === 0 ? (
+                      <option value="">Loading categories...</option>
+                    ) : (
+                      categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                <div className={styles.inputGroup}>
+                  <label>1. Front Design Upload (PDF/JPEG, max 20MB)</label>
+                  <select
+                    className={styles.placementSelect}
+                    value={frontPlacement}
+                    onChange={(e) => setFrontPlacement(e.target.value)}
+                    disabled={status === 'uploading'}
+                  >
+                    <option value="Front Left Chest">Front Left Chest</option>
+                    <option value="Front Right Chest">Front Right Chest</option>
+                    <option value="Front Center">Front Center</option>
+                    <option value="Define in description">Define in description</option>
+                  </select>
+                  <div className={`${styles.dropzone} ${frontFile ? styles.hasFile : ''}`}>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpeg,.jpg,application/pdf,image/jpeg"
+                      onChange={(e) => handleFileChange(e, 'front')}
                       className={styles.fileInput}
-                      id="file-upload"
+                      id="front-file-upload"
                       disabled={status === 'uploading'}
                     />
-                    <label htmlFor="file-upload" className={styles.dropzoneLabel}>
-                      {file ? (
+                    <label htmlFor="front-file-upload" className={styles.dropzoneLabel}>
+                      {frontFile ? (
                         <div className={styles.fileInfo}>
                           <FileText size={32} />
-                          <span>{file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                          <span>{frontFile.name} ({(frontFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
                         </div>
                       ) : (
                         <div className={styles.uploadPrompt}>
                           <Upload size={32} />
-                          <span>Click to upload or drag and drop</span>
+                          <span>Upload front design file</span>
                         </div>
                       )}
                     </label>
                   </div>
+                </div>
+
+                <div className={styles.inputGroup}>
+                  <label>2. Back Design Upload (PDF/JPEG, max 20MB)</label>
+                  <select
+                    className={styles.placementSelect}
+                    value={backPlacement}
+                    onChange={(e) => setBackPlacement(e.target.value)}
+                    disabled={status === 'uploading'}
+                  >
+                    <option value="Back Center">Back Center</option>
+                    <option value="Define in description">Define in description</option>
+                  </select>
+                  <div className={`${styles.dropzone} ${backFile ? styles.hasFile : ''}`}>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpeg,.jpg,application/pdf,image/jpeg"
+                      onChange={(e) => handleFileChange(e, 'back')}
+                      className={styles.fileInput}
+                      id="back-file-upload"
+                      disabled={status === 'uploading'}
+                    />
+                    <label htmlFor="back-file-upload" className={styles.dropzoneLabel}>
+                      {backFile ? (
+                        <div className={styles.fileInfo}>
+                          <FileText size={32} />
+                          <span>{backFile.name} ({(backFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                        </div>
+                      ) : (
+                        <div className={styles.uploadPrompt}>
+                          <Upload size={32} />
+                          <span>Upload back design file</span>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                </div>
+
+                <div className={styles.inputGroup}>
+                  <label htmlFor="description">Description (common for front and back)</label>
+                  <textarea
+                    id="description"
+                    rows={4}
+                    placeholder="Add notes for both front and back design placements, colors, sizing, and all requirements here."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    disabled={status === 'uploading'}
+                  />
                 </div>
 
                 <AnimatePresence>
@@ -244,14 +364,14 @@ export default function CustomizationPage() {
                 <button 
                   type="submit" 
                   className={styles.submitBtn}
-                  disabled={status === 'uploading' || !file || !name}
+                  disabled={status === 'uploading' || !frontFile || !backFile || !name || !category}
                 >
                   {status === 'uploading' ? (
                     <>
                       <Loader2 size={18} className={styles.spinner} />
                       Uploading...
                     </>
-                  ) : 'Submit Customization'}
+                  ) : 'Get Quote'}
                 </button>
               </form>
             )}

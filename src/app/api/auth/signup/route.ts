@@ -53,6 +53,7 @@ export async function POST(request: Request) {
           email,
           password: hashed,
           role,
+          auth_type: 'credentials',
           created_at: createdAt,
           updated_at: createdAt,
         },
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
       email,
       password: hashed,
       role,
+      auth_type: 'credentials',
       created_at: createdAt,
       updated_at: createdAt,
     });

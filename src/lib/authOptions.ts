@@ -2,8 +2,7 @@ import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { verifyPassword } from '@/lib/auth';
-import { persistAndSyncUser } from '@/lib/userPipeline';
-import { normalizeEmail, resolveRole, isAdminEmail } from '@/lib/adminConfig';
+import { normalizeEmail, resolveRole } from '@/lib/adminConfig';
 import { ensureNextAuthEnv, resolveAuthSecret } from '@/lib/authEnv';
 
 ensureNextAuthEnv();
@@ -88,63 +87,6 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
       }
       return session;
-    },
-    async signIn({ user }) {
-      if (!user.email) return false;
-
-      try {
-        const supabaseAdmin = getSupabaseAdmin();
-        if (!supabaseAdmin) return true;
-
-        const email = normalizeEmail(user.email);
-
-        const { data: existingUser } = await supabaseAdmin
-          .from('users')
-          .select('id, role')
-          .eq('email', email)
-          .maybeSingle();
-
-        if (!existingUser) {
-          const role = resolveRole(email);
-          const createdAt = new Date().toISOString();
-          const { data: newUser } = await supabaseAdmin
-            .from('users')
-            .insert([
-              {
-                name: user.name || email.split('@')[0],
-                email,
-                role,
-                image: user.image,
-                created_at: createdAt,
-                updated_at: createdAt,
-              },
-            ])
-            .select()
-            .single();
-
-          if (newUser) {
-            await persistAndSyncUser({
-              id: newUser.id,
-              name: newUser.name,
-              email: newUser.email,
-              role: newUser.role,
-              created_at: createdAt,
-              updated_at: createdAt,
-              image: user.image,
-            });
-          }
-        } else if (isAdminEmail(email) && existingUser.role !== 'admin') {
-          await supabaseAdmin
-            .from('users')
-            .update({ role: 'admin', updated_at: new Date().toISOString() })
-            .eq('id', existingUser.id);
-        }
-
-        return true;
-      } catch (error) {
-        console.error('Error in NextAuth signIn callback:', error);
-        return true;
-      }
     },
   },
   pages: {

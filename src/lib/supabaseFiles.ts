@@ -74,6 +74,11 @@ export async function uploadToSupabase(
     customer_name: metadata.customerName || metadata.name || '',
     email: metadata.email || '',
     phone: metadata.phone || '',
+    request_id: metadata.requestId || '',
+    category: metadata.category || '',
+    category_name: metadata.categoryName || metadata.category || '',
+    design_side: metadata.designSide || '',
+    placement: metadata.placement || '',
     instructions: metadata.instructions || '',
     uploaded_at: uploadedAt,
   };
@@ -81,9 +86,14 @@ export async function uploadToSupabase(
   await uploadJsonToBucket(BUCKET_NAME, metadataStoragePath(data.path), metaPayload);
 
   const sheetResult = await syncCustomizationRecordToSheets({
+    requestId: metaPayload.request_id,
     name: metaPayload.customer_name,
     email: metaPayload.email,
     phone: metaPayload.phone,
+    category: metaPayload.category,
+    categoryName: metaPayload.category_name,
+    designSide: metaPayload.design_side,
+    placement: metaPayload.placement,
     fileName: file.name,
     uploadedAt,
     viewLink,

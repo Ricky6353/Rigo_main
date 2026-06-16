@@ -38,21 +38,21 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('embroyit_login_history'); // Clean up any existing history
   }, []);
 
-  // Sync social session with state
+  // Sync NextAuth session with local user state (credentials + Google/Apple)
   useEffect(() => {
-    if (session?.user) {
-      const socialUser: User = {
-        id: session.user.email || 'social',
-        name: session.user.name || '',
+    if (session?.user?.email) {
+      setUser((prev) => ({
+        id: session.user.id || session.user.email || '',
+        name: session.user.name || prev?.name || '',
         email: session.user.email || '',
-        wishlist: user?.wishlist || [],
-        history: user?.history || [],
-      };
-      setUser(socialUser);
+        wishlist: prev?.wishlist || [],
+        history: prev?.history || [],
+      }));
 
-      // Handle admin portal access via social login
-      if (session.user.email && isAdminEmail(normalizeEmail(session.user.email))) {
+      if (isAdminEmail(normalizeEmail(session.user.email))) {
         sessionStorage.setItem('adminAuth', 'true');
+      } else {
+        sessionStorage.removeItem('adminAuth');
       }
     }
   }, [session]);

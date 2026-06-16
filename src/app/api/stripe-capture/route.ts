@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { persistAndSyncOrder } from '@/lib/orderPipeline';
+import { generateNextOrderId } from '@/lib/idSerials';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {});
 
@@ -50,9 +51,11 @@ export async function POST(req: Request) {
       ? session.payment_intent 
       : (session.payment_intent as any)?.id || session.id;
 
+    const orderId = await generateNextOrderId();
+
     // 3. Persist and sync (this handles duplicates internally)
     const result = await persistAndSyncOrder({
-      orderId: `STR-${session.id}`,
+      orderId,
       orderDate: new Date((session.created || Date.now() / 1000) * 1000).toISOString(),
       customerName,
       contact: phoneNumber,

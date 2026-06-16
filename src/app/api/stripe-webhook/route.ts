@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { persistAndSyncOrder } from '@/lib/orderPipeline';
+import { generateNextOrderId } from '@/lib/idSerials';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {});
 
@@ -57,8 +58,9 @@ export async function POST(req: Request) {
       const emailId = session.customer_details?.email || session.customer_email || '';
       const transactionId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id || session.id;
 
+      const orderId = await generateNextOrderId();
       await persistAndSyncOrder({
-        orderId: `STR-${session.id}`,
+        orderId,
         orderDate: new Date((session.created || Date.now() / 1000) * 1000).toISOString(),
         customerName,
         contact: phoneNumber,

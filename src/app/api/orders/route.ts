@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { persistAndSyncOrder, fetchOrdersFromSupabase } from '@/lib/orderPipeline';
 import { getSpreadsheetUrl } from '@/lib/sheetsSync';
+import { generateNextOrderId } from '@/lib/idSerials';
 
 function getDateRange(dateString: string, period: 'day' | 'week') {
   const date = new Date(dateString);
@@ -70,8 +71,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing order fields' }, { status: 400 });
   }
 
+  const orderId = await generateNextOrderId();
   const orderPayload = {
-    orderId: `ORD-${Date.now()}`,
+    orderId,
     orderDate: payload.orderDate || new Date().toISOString(),
     customerName: payload.customerName,
     contact: payload.contact || payload.phoneNumber || '',
