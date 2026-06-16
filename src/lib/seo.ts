@@ -73,6 +73,10 @@ export function buildPageMetadata({
       title: fullTitle,
       description,
     },
+    icons: {
+      icon: [{ url: '/favicon.ico' }, { url: '/favicon.png', type: 'image/png' }],
+      apple: '/favicon.png',
+    },
   };
 }
 
@@ -93,7 +97,7 @@ export function organizationJsonLd() {
     '@type': 'Organization',
     name: SITE_NAME,
     url: SITE_URL,
-    logo: `${SITE_URL}/hero.png`,
+    logo: `${SITE_URL}/favicon.png`,
     description: DEFAULT_DESCRIPTION,
     email: 'contact@embroyit.com',
     areaServed: {
