@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/components/AuthProvider';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
@@ -16,8 +16,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
+
+  const getCallbackUrl = () => {
+    if (typeof window === 'undefined') return '/';
+    return new URLSearchParams(window.location.search).get('callbackUrl') || '/';
+  };
 
 
 
@@ -60,7 +63,7 @@ export default function LoginPage() {
 
       login(email, checkData.user?.name || email.split('@')[0]);
 
-      const resultCallbackUrl = callbackUrl;
+      const resultCallbackUrl = getCallbackUrl();
       if (isAdminEmail(email)) {
         sessionStorage.setItem('adminAuth', 'true');
         router.push(resultCallbackUrl.startsWith('/admin') ? resultCallbackUrl : '/admin');
