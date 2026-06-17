@@ -121,6 +121,41 @@ export async function syncUserRecordToSheets(record: {
   }
 }
 
+/** Add a Join the Club email to the Users sheet (skips duplicate emails). */
+export async function syncNewsletterSubscriberToSheets(email: string): Promise<SheetsSyncResult> {
+  const client = getSheetsClient();
+  if (!client) return { syncedToSheets: false, reason: 'Google Sheets not configured' };
+
+  const { sheets, spreadsheetId } = client;
+  await ensureSheet(sheets, spreadsheetId, USERS_SHEET_NAME, USERS_HEADER);
+
+  const normalized = email.trim().toLowerCase();
+
+  try {
+    const existing = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${USERS_SHEET_NAME}!C:C`,
+    });
+    const rows = existing.data.values || [];
+    const alreadySubscribed = rows.some((row) => (row[0] || '').toString().trim().toLowerCase() === normalized);
+    if (alreadySubscribed) {
+      return { syncedToSheets: true, reason: 'Already subscribed' };
+    }
+
+    return syncUserRecordToSheets({
+      id: `club-${Date.now()}`,
+      name: 'Join the Club',
+      email: normalized,
+      role: 'newsletter',
+      created_at: new Date().toISOString(),
+      storage_path: 'newsletter',
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { syncedToSheets: false, reason: message };
+  }
+}
+
 export async function syncOrderRecordToSheets(order: {
   orderId: string;
   orderDate: string;

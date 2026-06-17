@@ -28,9 +28,9 @@ export default function Footer() {
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && (data.success || data.message)) {
         setStatus('success');
-        setMessage('Thank you for subscribing to Embroyit.');
+        setMessage(data.message || 'Thank you for subscribing to Embroyit.');
         setEmail('');
       } else {
         setStatus('error');
